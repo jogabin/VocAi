@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { fetchCustomers, fetchEmployees, createConsultData } from '../api/adminApi'
+import { fetchCustomers, fetchEmployees, createConsultData, readDialogExcel, downloadDialogTemplate } from '../api/adminApi'
 import { useHashRoute, navigate } from '../composables/useHashRoute'
 import ChatTranscript from '../components/voc/ChatTranscript.vue'
 
@@ -74,6 +74,40 @@ function move(i, d) {
 function remove(i) {
   form.lines.splice(i, 1)
   if (!form.lines.length) addLine('CUSTOMER')
+}
+
+// 엑셀 업로드: 서버에서 읽은 대화로 입력 목록을 채움 (등록은 기존처럼 [등록] 버튼으로)
+const excelInput = ref(null)
+const excelBusy = ref(false)
+const excelMsg = ref('')
+const excelErr = ref('')
+
+async function onExcelFile(ev) {
+  const file = ev.target.files?.[0]
+  ev.target.value = ''            // 같은 파일을 다시 골라도 change 이벤트가 나도록
+  if (!file) return
+  excelMsg.value = ''
+  excelErr.value = ''
+  excelBusy.value = true
+  try {
+    const { lines } = await readDialogExcel(file)
+    if (form.lines.some((l) => l.text.trim()) && !window.confirm(`입력 중인 대화를 엑셀 대화 ${lines.length}건으로 바꿀까요?`)) return
+    form.lines = lines.map((l) => newLine(l.speaker, l.text))
+    excelMsg.value = `${file.name}에서 대화 ${lines.length}건을 불러왔습니다. 미리보기를 확인한 뒤 등록하세요.`
+  } catch (e) {
+    excelErr.value = e.message
+  } finally {
+    excelBusy.value = false
+  }
+}
+
+async function onTemplate() {
+  excelErr.value = ''
+  try {
+    await downloadDialogTemplate()
+  } catch (e) {
+    excelErr.value = e.message
+  }
 }
 
 function validate() {
@@ -177,6 +211,16 @@ onMounted(async () => {
 
           <div class="field">
             <label>대화내용 <span class="req">*</span> <span class="hint">순서대로 입력 · 화자 배지를 누르면 고객/상담사 전환</span></label>
+            <div class="inline excel-bar">
+              <button class="btn btn-sm" type="button" :disabled="excelBusy" @click="excelInput.click()">
+                {{ excelBusy ? '읽는 중…' : '엑셀로 불러오기' }}
+              </button>
+              <button class="btn btn-sm btn-ghost" type="button" @click="onTemplate">양식 내려받기</button>
+              <span class="hint">A열 화자(고객/상담사) · B열 대화내용, 1행은 머리글</span>
+              <input ref="excelInput" type="file" accept=".xlsx,.xlsm" hidden @change="onExcelFile">
+            </div>
+            <p v-if="excelErr" class="err">{{ excelErr }}</p>
+            <p v-else-if="excelMsg" class="ok excel-msg">{{ excelMsg }}</p>
             <div v-for="(l, i) in form.lines" :key="l.id" class="cd-line">
               <button type="button" class="who" :class="l.speaker === 'AGENT' ? 'agent' : 'customer'" :title="'클릭하면 ' + (l.speaker === 'AGENT' ? '고객' : '상담사') + '으로 전환'" @click="toggleSpeaker(l)">
                 {{ l.speaker === 'AGENT' ? '상담사' : '고객' }}
@@ -242,5 +286,7 @@ onMounted(async () => {
 .ops button:hover:not(:disabled) { background: var(--surface-2); }
 .done-box { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--ok-soft); border: 1px solid #bfe5d0; color: #0d5c37; border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px; font-size: 13px; }
 .err { margin: 0 0 10px; }
+.excel-bar { margin-bottom: 8px; }
+.excel-msg { margin: 0 0 10px; font-size: 13px; }
 @media (max-width: 560px) { .form .field-row { grid-template-columns: 1fr; } .cd-line { grid-template-columns: 56px 1fr; } .cd-line .off, .cd-line .ops { display: none; } }
 </style>

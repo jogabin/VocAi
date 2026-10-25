@@ -9,6 +9,7 @@ colorama==0.4.6
 detect-installer==0.2.1
 dnspython==2.9.0
 email-validator==2.3.0
+et_xmlfile==2.0.0
 fastapi==0.143.0
 fastapi-cli==0.0.32
 fastapi-cloud-cli==0.26.0
@@ -27,6 +28,7 @@ mccabe==0.7.0
 mdurl==0.1.2
 opentelemetry-api==1.45.1
 opentelemetry-exporter-http-transport==0.66b1
+openpyxl==3.1.5
 opentelemetry-exporter-otlp-common==0.66b1
 opentelemetry-exporter-otlp-proto-common==1.45.1
 opentelemetry-exporter-otlp-proto-http==1.45.1

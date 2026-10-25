@@ -8,18 +8,21 @@
 
 상담데이터 등록
 - POST  /stt                       기초 상담데이터 등록 (관리자): 통화 + 대화 생성, 상담상태 '진행'
+- POST  /stt/dialog-excel          대화내용 엑셀 읽기 (관리자): 저장하지 않고 대화 목록만 돌려줌
+- GET   /stt/dialog-excel/template 대화내용 엑셀 양식 내려받기
 """
 import re
 from datetime import date, datetime, time, timedelta
 from typing import Literal
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
 
 from app.database import DB
-from app.services import auth
+from app.services import auth, dialog_excel
 
 router = APIRouter(tags=["customer"])
 KST = ZoneInfo("Asia/Seoul")
@@ -220,3 +223,27 @@ def create_consult_data(body: ConsultDataIn, db: DB, admin: auth.AdminUser):
     db.commit()
     return {"call_id": call_id, "consult_status": "진행", "started_at": started, "duration_sec": duration,
             "utterance_count": len(lines)}
+
+
+MAX_EXCEL_BYTES = 2 * 1024 * 1024
+
+
+@router.post("/stt/dialog-excel", summary="대화내용 엑셀 읽기 (저장하지 않고 대화 목록만 반환)")
+async def read_dialog_excel(file: UploadFile, _: auth.AdminUser):
+    if not (file.filename or "").lower().endswith((".xlsx", ".xlsm")):
+        raise HTTPException(400, "엑셀 파일(.xlsx)만 올릴 수 있습니다.")
+    data = await file.read(MAX_EXCEL_BYTES + 1)
+    if len(data) > MAX_EXCEL_BYTES:
+        raise HTTPException(400, "엑셀 파일은 2MB 이하만 올릴 수 있습니다.")
+    try:
+        return dialog_excel.parse(data)
+    except dialog_excel.DialogExcelError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/stt/dialog-excel/template", summary="대화내용 엑셀 양식 내려받기")
+def dialog_excel_template(_: auth.AdminUser):
+    name = quote("상담대화_양식.xlsx")
+    return Response(dialog_excel.template(),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f"attachment; filename=dialog_template.xlsx; filename*=UTF-8''{name}"})

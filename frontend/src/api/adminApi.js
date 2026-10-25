@@ -58,3 +58,22 @@ export async function createConsultData(payload) {
   const { data } = await http.post('/stt', payload)
   return data
 }
+
+/** 대화내용 엑셀 읽기: 저장하지 않고 [{ speaker, text }] 목록만 받음 */
+export async function readDialogExcel(file) {
+  const body = new FormData()
+  body.append('file', file)
+  const { data } = await http.post('/stt/dialog-excel', body)
+  return data
+}
+
+/** 대화내용 엑셀 양식 내려받기 (로그인 토큰이 필요해서 링크 대신 Blob 으로 받음) */
+export async function downloadDialogTemplate() {
+  const { data } = await http.get('/stt/dialog-excel/template', { responseType: 'blob' })
+  const url = URL.createObjectURL(data)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = '상담대화_양식.xlsx'
+  a.click()
+  URL.revokeObjectURL(url)
+}
