@@ -50,8 +50,17 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+
+def _sqlalchemy_url(url: str) -> str:
+    """postgres:// · postgresql:// 형식(axhub 등에서 주입)을 psycopg(v3) 드라이버 형식으로 맞춘다."""
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix):]
+    return url
+
+
 # 앱 전체에서 공유하는 엔진(커넥션 풀)
-engine = create_engine(settings.database_url, pool_pre_ping=True)
+engine = create_engine(_sqlalchemy_url(settings.database_url), pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False)
 
 
