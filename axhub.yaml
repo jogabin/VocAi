@@ -1,0 +1,25 @@
+version: axhub/v1
+name: vocai
+
+runtime:
+  port: 8080
+  health_path: /
+
+build:
+  framework: fastapi
+  dockerfile: Dockerfile
+  deploy_method: docker
+
+database:
+  engine: postgres
+
+env:
+  required:
+    - name: OLLAMA_API_KEY
+  optional:
+    - name: LLM_PROVIDER
+    - name: OLLAMA_MODEL
+    - name: AGENT_STEP_DELAY_SEC
+    - name: APP_BASE_URL
+    - name: MESSENGER_WEBHOOK_URL
+    - name: AUTH_REQUIRED
