@@ -1,0 +1,20 @@
+# 비밀값 (절대 커밋 금지) - 예시는 backend/.env.example
+.env
+backend/.venv
+
+# Python
+backend/venv/
+__pycache__/
+*.pyc
+dump.sql
+
+# deploy.ps1 이 frontend/dist 를 복사해 만드는 폴더
+backend/static/
+
+# Node (세부 항목은 frontend/.gitignore)
+node_modules/
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+.idea/

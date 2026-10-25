@@ -1,0 +1,18 @@
+.venv/
+.env
+.git/
+__pycache__/
+*.pyc
+dump.sql
+# 이 폴더 자체가 파이썬 가상환경이라 Windows용 패키지가 같이 올라가지 않도록 제외
+Lib/
+lib/
+Include/
+include/
+Scripts/
+scripts/
+share/
+pyvenv.cfg
+# 예전 복사본 폴더
+fast_api/
+venv/
