@@ -154,3 +154,9 @@ export async function updateAdjustRule(code, payload) {
   const { data } = await http.patch(`/severity-criteria/adjust-rules/${encodeURIComponent(code)}`, payload)
   return data
 }
+
+/** 텔레그램 봇에게 최근 메시지를 보낸 대화 목록 (인사정보 메신저 ID = chat_id 확인용) */
+export async function fetchTelegramChats() {
+  const { data } = await http.get('/messenger/telegram/chats')
+  return data
+}

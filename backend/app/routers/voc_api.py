@@ -296,6 +296,14 @@ def send_messenger(body: MessengerIn, db: DB):
     return logs
 
 
+@router.get("/messenger/telegram/chats", summary="텔레그램 chat_id 확인 (봇에게 최근 메시지를 보낸 대화)")
+def telegram_chats():
+    try:
+        return messenger.telegram_chats()
+    except RuntimeError as e:
+        raise HTTPException(400, str(e))
+
+
 @router.get("/messenger/logs", summary="메신저 전송 이력")
 def messenger_logs(db: DB, incident_id: int | None = None, limit: int = Query(50, ge=1, le=200)):
     return repo.list_messenger_logs(db, incident_id, limit)
@@ -342,7 +350,7 @@ def monitor_counts(db: DB, period: Period = "today"):
 def monitor_summary(db: DB):
     return {**repo.dashboard_summary(db), "llm_enabled": llm.enabled(), "llm_desc": llm.describe(),
             "rag": rag.status(db),
-            "messenger_mode": "WEBHOOK" if messenger.settings.messenger_webhook_url else "MOCK",
+            "messenger_mode": messenger.provider(),
             "severity_label": {g["grade_code"]: g["grade_name"] for g in criteria.load(db).grades},
             "criteria_version": criteria.load(db).version}
 

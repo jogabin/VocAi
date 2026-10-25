@@ -46,9 +46,9 @@ INSERT INTO employee (emp_no, emp_name, emp_group, dept, position, duty_role, du
                       duty_system, duty_detail, messenger_id, phone)
 SELECT * FROM (VALUES
  ('IT0101', '정다은', 'IT담당자', '모바일앱개발팀', '책임', '담당', ARRAY['UI오류'], '모바일 앱(iOS/Android)',
-  'iOS·Android 앱 배포·핫픽스, 앱 토큰/세션 처리', 'jung.daeun', '010-9999-0101'),
+  'iOS·Android 앱 배포·핫픽스, 앱 토큰/세션 처리', '8913038773', '010-9999-0101'),
  ('IT0102', '김태호', 'IT담당자', '대외계연계팀', '책임', '부담당', ARRAY['기타'], '타행·대외기관 연계',
-  '타행이체·오픈뱅킹 대외기관 연계 장애 대응', 'kim.taeho', '010-9999-0102')
+  '타행이체·오픈뱅킹 대외기관 연계 장애 대응', '8913038773', '010-9999-0102')
 ) AS v(emp_no, emp_name, emp_group, dept, position, duty_role, duty_error_types, duty_system, duty_detail, messenger_id, phone)
 WHERE NOT EXISTS (SELECT 1 FROM employee e WHERE e.emp_no = v.emp_no);
 

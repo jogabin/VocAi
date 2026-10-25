@@ -23,7 +23,7 @@ deploy.ps1   Vue 빌드 → backend/static 복사 → Cloud Run 배포
 | `scripts/init_db.py` | 위 SQL 실행 스크립트 |
 | `app/routers/voc_api.py` | API 5종 + 에이전트 실행/모니터 API |
 | `app/services/repo.py` | DB 조회/등록 함수 (API와 에이전트가 공유) |
-| `app/services/messenger.py` | 메신저 전송 (MOCK 또는 웹훅) |
+| `app/services/messenger.py` | 메신저 전송 (MOCK · 웹훅 · 텔레그램) |
 | `app/agents/detection.py` | ① 장애감지 에이전트 |
 | `app/agents/dedup.py` | ② 중복 제보 통합 에이전트 |
 | `app/agents/severity.py` | ③ 장애 심각도 판별 에이전트 (규칙 + 과거이력 RAG) |
@@ -103,7 +103,9 @@ OLLAMA_EMBED_BASE_URL=http://localhost:11434
 OLLAMA_EMBED_MODEL=bge-m3
 RAG_MIN_SIMILARITY=0.45                  # 유사 사례로 표시할 최소 코사인 유사도
 RAG_FP_SIMILARITY=0.60                   # 과거 오탐 사례와 같은 건으로 볼 유사도
-MESSENGER_WEBHOOK_URL=                   # 없으면 MOCK
+MESSENGER_PROVIDER=telegram              # mock / webhook / telegram (비우면 웹훅 URL 유무로 자동)
+TELEGRAM_BOT_TOKEN=...                   # 텔레그램 봇 토큰. 인사정보 메신저 ID = chat_id
+MESSENGER_WEBHOOK_URL=                   # MESSENGER_PROVIDER=webhook 일 때
 DEDUP_WINDOW_MIN=60
 MASS_SIGNAL_THRESHOLD=3
 AGENT_STEP_DELAY_SEC=1.0                 # 시연용 노드 간 지연(초)
@@ -198,6 +200,8 @@ Cloud Run에서는 PC의 로컬 Ollama(임베딩)에 접근할 수 없으므로,
 - 상세 링크: `APP_BASE_URL/#/incident?id=N` (2단계에서는 장애 알림 모니터로 이동, 3단계에서 장애 상세정보 화면으로 연결)
 - API 추가: `GET /stt?consult_status=진행`, `POST /stt/{call_id}/utterances`(관리자), `POST /messenger/send`에 `emp_ids`
 - 시연을 처음부터 다시 하려면 `python scripts\init_db.py --reset` (모든 통화가 다시 '진행' 상태가 됨)
+- 배포 환경(axhub)의 DB 초기화: 설정값 `DB_RESET_TOKEN` 에 이전과 다른 값(예: `2026-10-26`)을 넣고 재배포하면
+  서버 시작 시 한 번만 `--reset` 과 같은 초기화를 합니다. 같은 값으로 재시작·재배포하면 다시 지우지 않습니다.
 
 ## 10. 장애 알림 모니터 · 장애 상세정보 · 판별기준 정리 (3단계)
 

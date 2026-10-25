@@ -29,8 +29,14 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     llm_model: str = "claude-sonnet-5-5"
     llm_timeout_sec: float = 60.0
+    # 배포 환경 DB 초기화: 마지막으로 적용한 값과 다른 값을 넣고 재배포하면 시작 시 한 번만 VOC 테이블을 다시 만듦
+    db_reset_token: str = ""
+    # 메신저 전송 방식: mock / webhook / telegram (비우면 웹훅 URL 유무로 webhook·mock 자동 선택)
+    messenger_provider: str = ""
     # 사내 메신저 웹훅 URL (없으면 MOCK 전송: messenger_log 테이블에만 기록)
     messenger_webhook_url: str = ""
+    # 텔레그램 봇 토큰 (MESSENGER_PROVIDER=telegram). 인사정보의 메신저 ID 에 텔레그램 chat_id 입력
+    telegram_bot_token: str = ""
     # 중복 제보 통합 판단 시간창(분) / 대규모 장애 신호 기준 제보 건수
     dedup_window_min: int = 60
     mass_signal_threshold: int = 3

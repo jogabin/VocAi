@@ -1,6 +1,7 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { fetchEmployees, fetchEmployee, createEmployee, updateEmployee } from '../api/adminApi'
+import { fetchTelegramChats } from '../api/vocApi'
 import { useAuth } from '../composables/useAuth'
 
 /* 인사정보 관리: 상담사 / 센터관리자 / IT담당자.
@@ -112,6 +113,29 @@ function closeForm() {
 }
 
 const isIT = computed(() => form.emp_group === 'IT담당자')
+
+/* 텔레그램 chat_id 찾기: 수신자가 봇에게 메시지를 보내면 최근 대화 목록에 나타남 → 선택해서 메신저 ID 에 입력 */
+const tgChats = ref(null)
+const tgLoading = ref(false)
+const tgError = ref('')
+
+async function findTelegramChats() {
+  tgLoading.value = true
+  tgError.value = ''
+  try {
+    tgChats.value = await fetchTelegramChats()
+  } catch (e) {
+    tgError.value = e.message
+    tgChats.value = null
+  } finally {
+    tgLoading.value = false
+  }
+}
+
+watch(() => [editing.mode, editing.id], () => {
+  tgChats.value = null
+  tgError.value = ''
+})
 
 function validate() {
   if (editing.mode === 'new' && !/^[A-Za-z0-9-]{2,20}$/.test(form.emp_no.trim())) return '사번은 영문·숫자·- 2~20자입니다.'
@@ -282,8 +306,24 @@ onMounted(load)
           </div>
           <div class="field-row">
             <div class="field">
-              <label>메신저 ID <span v-if="isIT" class="req">*</span></label>
-              <input v-model="form.messenger_id" class="mono" maxlength="50">
+              <label>메신저 ID <span class="hint">텔레그램 chat_id</span> <span v-if="isIT" class="req">*</span></label>
+              <div class="tg-input">
+                <input v-model="form.messenger_id" class="mono" maxlength="50" placeholder="예: 123456789">
+                <button type="button" class="btn btn-sm" :disabled="tgLoading" @click="findTelegramChats">
+                  {{ tgLoading ? '찾는 중…' : 'chat_id 찾기' }}
+                </button>
+              </div>
+              <p v-if="tgError" class="tg-msg error">{{ tgError }}</p>
+              <template v-else-if="tgChats">
+                <p v-if="!tgChats.length" class="tg-msg">최근 대화가 없습니다. 수신자가 텔레그램에서 봇에게 아무 메시지나 보낸 뒤 다시 찾아보세요.</p>
+                <div v-else class="tg-chats">
+                  <button v-for="c in tgChats" :key="c.chat_id" type="button" class="btn btn-sm"
+                          :class="{ 'btn-primary': form.messenger_id === c.chat_id }"
+                          @click="form.messenger_id = c.chat_id">
+                    {{ c.name || c.username || c.chat_id }} <span class="mono">{{ c.chat_id }}</span>
+                  </button>
+                </div>
+              </template>
             </div>
             <div class="field">
               <label>전화</label>
@@ -332,5 +372,10 @@ onMounted(load)
 .it-box { background: var(--ok-soft); border: 1px solid #bfe5d0; border-radius: 10px; padding: 12px 12px 0; margin-bottom: 12px; }
 .it-title { font-size: 12.5px; font-weight: 700; color: var(--ok); margin-bottom: 8px; }
 .it-title .hint { font-weight: 500; color: var(--text-3); margin-left: 6px; }
+.tg-input { display: flex; gap: 6px; }
+.tg-input input { flex: 1; min-width: 0; }
+.tg-chats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.tg-msg { margin: 6px 0 0; font-size: 12px; color: var(--text-3); }
+.tg-msg.error { color: #c62828; }
 .err { margin: 0 0 10px; }
 </style>

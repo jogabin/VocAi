@@ -21,5 +21,8 @@ env:
     - name: OLLAMA_MODEL
     - name: AGENT_STEP_DELAY_SEC
     - name: APP_BASE_URL
+    - name: MESSENGER_PROVIDER
+    - name: TELEGRAM_BOT_TOKEN
     - name: MESSENGER_WEBHOOK_URL
     - name: AUTH_REQUIRED
+    - name: DB_RESET_TOKEN

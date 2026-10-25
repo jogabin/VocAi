@@ -84,20 +84,20 @@ SELECT 'IT' || lpad(o.owner_id::text, 4, '0'), o.owner_name, 'IT담당자', o.de
 -- 상담사 / 센터관리자
 INSERT INTO employee (emp_no, emp_name, emp_group, dept, position, duty_detail, messenger_id, phone)
 SELECT * FROM (VALUES
- ('CS0001', '이수진', '상담사',     '고객센터 1팀', '선임상담사', '개인고객 전자금융 상담', 'lee.sujin',   '010-7777-0001'),
- ('CS0002', '박지훈', '상담사',     '고객센터 1팀', '상담사',     '개인고객 전자금융 상담', 'park.jihoon', '010-7777-0002'),
- ('CS0003', '정하나', '상담사',     '고객센터 2팀', '상담사',     '이체·카드 상담',         'jung.hana',   '010-7777-0003'),
- ('CM0001', '강민정', '센터관리자', '고객센터',     '센터장',     '고객센터 운영 총괄, VOC 장애 알림 시스템 관리', 'kang.minjung', '010-8888-0001'),
- ('CM0002', '조현우', '센터관리자', '고객센터 1팀', '팀장',       '1팀 상담 품질·장애 VOC 1차 확인', 'cho.hyunwoo', '010-8888-0002')
+ ('CS0001', '이수진', '상담사',     '고객센터 1팀', '선임상담사', '개인고객 전자금융 상담', '8913038773',   '010-7777-0001'),
+ ('CS0002', '박지훈', '상담사',     '고객센터 1팀', '상담사',     '개인고객 전자금융 상담', '8913038773', '010-7777-0002'),
+ ('CS0003', '정하나', '상담사',     '고객센터 2팀', '상담사',     '이체·카드 상담',         '8913038773',   '010-7777-0003'),
+ ('CM0001', '강민정', '센터관리자', '고객센터',     '센터장',     '고객센터 운영 총괄, VOC 장애 알림 시스템 관리', '8913038773', '010-8888-0001'),
+ ('CM0002', '조현우', '센터관리자', '고객센터 1팀', '팀장',       '1팀 상담 품질·장애 VOC 1차 확인', '8913038773', '010-8888-0002')
 ) AS v(emp_no, emp_name, emp_group, dept, position, duty_detail, messenger_id, phone)
 WHERE NOT EXISTS (SELECT 1 FROM employee e WHERE e.emp_no = v.emp_no);
 
 -- 로그인 계정
 INSERT INTO voc_user (login_id, password_hash, user_name, auth_role, emp_id)
-SELECT v.login_id, v.pw, v.user_name, v.auth_role, (SELECT emp_id FROM employee WHERE messenger_id = v.messenger_id ORDER BY emp_id LIMIT 1)
+SELECT v.login_id, v.pw, v.user_name, v.auth_role, (SELECT emp_id FROM employee WHERE emp_name = v.user_name ORDER BY emp_id LIMIT 1)
   FROM (VALUES
-   ('admin',   'pbkdf2_sha256$200000$3833b8fb0b68e5a1c77470666d258d01$f334e6439df2b9072384ba64140fb9b0dc33f67fe25f96350aea22c23f9362fb', '강민정', '시스템관리자', 'kang.minjung'),
-   ('agent01', 'pbkdf2_sha256$200000$8fbc712c1a6c0ddb0613d7ed319c797a$2141fe36fd248c4450a0bc49085a583b94441e8e77e1288409324ea5ff183ca9', '이수진', '상담사',   'lee.sujin'),
-   ('it01',    'pbkdf2_sha256$200000$8fbc712c1a6c0ddb0613d7ed319c797a$2141fe36fd248c4450a0bc49085a583b94441e8e77e1288409324ea5ff183ca9', '김도윤', 'IT담당자', 'kim.doyun')
-  ) AS v(login_id, pw, user_name, auth_role, messenger_id)
+   ('admin',   'pbkdf2_sha256$200000$3833b8fb0b68e5a1c77470666d258d01$f334e6439df2b9072384ba64140fb9b0dc33f67fe25f96350aea22c23f9362fb', '강민정', '시스템관리자'),
+   ('agent01', 'pbkdf2_sha256$200000$8fbc712c1a6c0ddb0613d7ed319c797a$2141fe36fd248c4450a0bc49085a583b94441e8e77e1288409324ea5ff183ca9', '이수진', '상담사'),
+   ('it01',    'pbkdf2_sha256$200000$8fbc712c1a6c0ddb0613d7ed319c797a$2141fe36fd248c4450a0bc49085a583b94441e8e77e1288409324ea5ff183ca9', '김도윤', 'IT담당자')
+  ) AS v(login_id, pw, user_name, auth_role)
  WHERE NOT EXISTS (SELECT 1 FROM voc_user u WHERE u.login_id = v.login_id);

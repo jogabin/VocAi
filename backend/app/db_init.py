@@ -2,7 +2,7 @@
 import logging
 from pathlib import Path
 
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 
 from app.database import engine
 
@@ -90,3 +90,25 @@ def init_if_empty() -> None:
         return
     log.info("VOC 테이블이 없어 초기화합니다 (초기 로그인 계정: admin / admin1234)")
     init_schema()
+
+
+def reset_once(token: str) -> None:
+    """DB_RESET_TOKEN 값이 마지막으로 적용한 값과 다를 때만 VOC 테이블을 지우고 시드로 다시 만든다.
+
+    배포 환경에서 기존 데이터를 초기화할 때 사용: 새 토큰 값(예: 날짜)을 설정값으로 넣고 재배포하면
+    첫 시작 때 한 번만 초기화되고, 이후 재시작·재배포에서는 같은 토큰이라 다시 지우지 않는다.
+    """
+    if not token:
+        return
+    with engine.begin() as cn:
+        # 여러 인스턴스가 동시에 시작해도 한 곳에서만 초기화하도록 잠금 (트랜잭션 종료 시 자동 해제)
+        cn.execute(text("SELECT pg_advisory_xact_lock(hashtext('vocai_db_reset'))"))
+        cn.execute(text("CREATE TABLE IF NOT EXISTS app_meta (key VARCHAR(50) PRIMARY KEY, value TEXT NOT NULL,"
+                        " updated_at TIMESTAMPTZ NOT NULL DEFAULT now())"))
+        applied = cn.execute(text("SELECT value FROM app_meta WHERE key = 'db_reset_token'")).scalar()
+        if applied == token:
+            return
+        log.warning("DB_RESET_TOKEN=%s 이 새 값이라 VOC 테이블을 초기화합니다 (기존 데이터 삭제)", token)
+        init_schema(reset=True)
+        cn.execute(text("INSERT INTO app_meta (key, value) VALUES ('db_reset_token', :v) "
+                        "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()"), {"v": token})
