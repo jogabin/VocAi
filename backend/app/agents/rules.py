@@ -140,8 +140,4 @@ def max_severity(a: str | None, b: str | None) -> str | None:
 
 
 def should_notify(severity: str, report_count: int) -> bool:
-    if severity in ("P1", "P2"):
-        return True
-    if severity == "P3":
-        return report_count >= 2
-    return False
+    return severity == "P1"      # 장애 알림은 P1만

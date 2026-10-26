@@ -20,6 +20,8 @@ PROCESS_TO_STATUS = {"진행중": "확인중", "처리완료": "해결", "미대
 PERIOD_SQL = {"today": "i.created_at >= date_trunc('day', now())",
               "7d": "i.created_at >= now() - interval '7 days'",
               "all": "TRUE"}
+# 날짜별 조회 (화면 날짜 = 한국 시간 기준)
+KST_DATE = "(({col}) AT TIME ZONE 'Asia/Seoul')::date"
 # 모니터 건수 박스 → 목록 조건
 BOX_SQL = {
     "registered": "TRUE",
@@ -39,12 +41,24 @@ def _row(result) -> dict | None:
     return dict(r) if r else None
 
 
+def _date_conds(col: str, date_from, date_to, conds: list, params: dict) -> None:
+    """조회 기간(한국 날짜 기준, 양 끝 포함) 조건 추가. 비어 있으면 제한 없음."""
+    if date_from:
+        conds.append(f"{KST_DATE.format(col=col)} >= :date_from")
+        params["date_from"] = date_from
+    if date_to:
+        conds.append(f"{KST_DATE.format(col=col)} <= :date_to")
+        params["date_to"] = date_to
+
+
 # =====================================================================
 # STT 원문
 # =====================================================================
 def list_stt_calls(db: Session, keyword: str | None = None, registered: bool | None = None,
-                   limit: int = 50, offset: int = 0, consult_status: str | None = None) -> list[dict]:
+                   limit: int = 50, offset: int = 0, consult_status: str | None = None,
+                   date_from=None, date_to=None) -> list[dict]:
     conds, params = [], {"limit": limit, "offset": offset}
+    _date_conds("c.started_at", date_from, date_to, conds, params)
     if consult_status:
         conds.append("c.consult_status = :cs")
         params["cs"] = consult_status
@@ -292,8 +306,9 @@ def search_knowledge(db: Session, error_type: str | None = None) -> list[dict]:
 
 def list_incidents(db: Session, status: str | None = None, open_only: bool = False,
                    limit: int = 50, box: str | None = None, period: str | None = None,
-                   top_grade: str = "P1") -> list[dict]:
+                   top_grade: str = "P1", date_from=None, date_to=None) -> list[dict]:
     conds, params = [], {"limit": limit}
+    _date_conds("i.created_at", date_from, date_to, conds, params)
     if box in BOX_SQL:
         conds.append(BOX_SQL[box])
         params["top"] = top_grade
@@ -345,11 +360,13 @@ def get_incident(db: Session, incident_id: int, detail: bool = True) -> dict | N
     return inc
 
 
-def monitor_counts(db: Session, period: str = "today", top_grade: str = "P1") -> dict:
-    """장애 알림 모니터 건수 박스 (기간: today / 7d / all)."""
+def monitor_counts(db: Session, period: str | None = None, top_grade: str = "P1",
+                   date_from=None, date_to=None) -> dict:
+    """장애 알림 모니터 건수 박스 (조회 기간 date_from~date_to, 예전 방식 period: today / 7d / all)."""
     cols = ", ".join(f"count(*) FILTER (WHERE {cond}) AS {key}" for key, cond in BOX_SQL.items())
-    return _row(db.execute(text(f"SELECT {cols} FROM incident_alert i WHERE {PERIOD_SQL.get(period, 'TRUE')}"),
-                           {"top": top_grade}))
+    conds, params = [PERIOD_SQL.get(period, "TRUE")], {"top": top_grade}
+    _date_conds("i.created_at", date_from, date_to, conds, params)
+    return _row(db.execute(text(f"SELECT {cols} FROM incident_alert i WHERE {' AND '.join(conds)}"), params))
 
 
 # =====================================================================

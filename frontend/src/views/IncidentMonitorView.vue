@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { fetchMonitorCounts, fetchMonitorSummary, fetchIncidents, fetchAgentRuns } from '../api/vocApi'
 import { useHashRoute, navigate } from '../composables/useHashRoute'
 import { usePolling } from '../composables/usePolling'
-import { fmtTime, timeAgo, PROCESS_BADGE } from '../utils/format'
+import { fmtDate, fmtTime, timeAgo, PROCESS_BADGE } from '../utils/format'
 import SeverityBadge from '../components/voc/SeverityBadge.vue'
 import StatusBadge from '../components/voc/StatusBadge.vue'
 
@@ -16,11 +16,17 @@ const { query } = useHashRoute()
 // 예전 링크(#/monitor?incident=N)는 장애 상세정보로
 if (query.value.incident) navigate('/incident', { id: query.value.incident })
 
-const PERIODS = [
-  { key: 'today', label: '오늘' },
-  { key: '7d', label: '최근 7일' },
-  { key: 'all', label: '전체' },
-]
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+// 조회 기간(장애 등록일): 주소 ?from=&to= 우선, 예전 링크의 period(today/7d/all)도 날짜로 바꿔 반영.
+// 기본: 오늘 포함 최근 7일
+function initialDates(q) {
+  if (DATE_RE.test(q.from || '') || DATE_RE.test(q.to || '')) {
+    return [DATE_RE.test(q.from || '') ? q.from : '', DATE_RE.test(q.to || '') ? q.to : '']
+  }
+  if (q.period === 'today') return [fmtDate(), fmtDate()]
+  if (q.period === 'all') return ['', '']
+  return [fmtDate(new Date(), -6), fmtDate()]
+}
 const BOXES = [
   { key: 'registered', label: '장애 정보 등록', desc: '에이전트가 등록한 전체 장애' },
   { key: 'urgent', label: '긴급 장애', desc: '최상위 등급 · 미처리' },
@@ -29,7 +35,9 @@ const BOXES = [
   { key: 'resolved', label: '장애 처리 완료', desc: 'IT담당자 처리완료' },
 ]
 
-const period = ref(PERIODS.some((p) => p.key === query.value.period) ? query.value.period : 'today')
+const [initFrom, initTo] = initialDates(query.value)
+const dateFrom = ref(initFrom)
+const dateTo = ref(initTo)
 const box = ref(BOXES.some((b) => b.key === query.value.box) ? query.value.box : 'registered')
 const counts = ref(null)
 const summary = ref(null)
@@ -40,12 +48,22 @@ const updatedAt = ref(null)
 
 const currentBox = computed(() => BOXES.find((b) => b.key === box.value))
 const urgentLabel = computed(() => counts.value ? `긴급 장애 (${counts.value.top_grade} ${counts.value.top_grade_label})` : '긴급 장애')
+const rangeLabel = computed(() => {
+  if (!dateFrom.value && !dateTo.value) return '전체 기간'
+  if (dateFrom.value === dateTo.value) return dateFrom.value
+  return `${dateFrom.value || '처음'} ~ ${dateTo.value || '오늘'}`
+})
 
 async function refresh() {
+  if (dateFrom.value && dateTo.value && dateFrom.value > dateTo.value) {
+    error.value = '조회 시작일이 종료일보다 늦습니다.'
+    return
+  }
+  const range = { dateFrom: dateFrom.value, dateTo: dateTo.value }
   try {
     const [c, l, s, r] = await Promise.all([
-      fetchMonitorCounts(period.value),
-      fetchIncidents({ box: box.value, period: period.value, limit: 200 }),
+      fetchMonitorCounts(range),
+      fetchIncidents({ box: box.value, ...range, limit: 200 }),
       fetchMonitorSummary(),
       fetchAgentRuns(8),
     ])
@@ -65,16 +83,17 @@ const { enabled: autoRefresh, refresh: refreshNow } = usePolling(refresh, 3000)
 function pickBox(key) {
   box.value = key
 }
-watch([box, period], () => {
-  navigate('/monitor', { box: box.value, period: period.value })
+watch([box, dateFrom, dateTo], () => {
+  navigate('/monitor', { box: box.value, from: dateFrom.value, to: dateTo.value })
   list.value = []
   refreshNow()
 })
 
-// 주소(#/monitor?box=..&period=..)로 바뀐 경우에도 박스·기간 반영
-watch(() => [query.value.box, query.value.period], ([b, p]) => {
+// 주소(#/monitor?box=..&from=..&to=..)로 바뀐 경우에도 박스·기간 반영
+watch(() => [query.value.box, query.value.from, query.value.to], ([b, f, t]) => {
   if (b && b !== box.value && BOXES.some((x) => x.key === b)) box.value = b
-  if (p && p !== period.value && PERIODS.some((x) => x.key === p)) period.value = p
+  if (f !== undefined && DATE_RE.test(f) && f !== dateFrom.value) dateFrom.value = f
+  if (t !== undefined && DATE_RE.test(t) && t !== dateTo.value) dateTo.value = t
 })
 
 function openIncident(i) {
@@ -106,8 +125,11 @@ const ragLabel = computed(() => {
     </div>
 
     <div class="mon-bar">
-      <div class="period">
-        <button v-for="p in PERIODS" :key="p.key" :class="{ on: period === p.key }" @click="period = p.key">{{ p.label }}</button>
+      <div class="dates">
+        <span class="dates-label">조회 기간</span>
+        <input v-model.lazy="dateFrom" type="date" aria-label="조회 시작일">
+        <span class="muted">~</span>
+        <input v-model.lazy="dateTo" type="date" aria-label="조회 종료일">
       </div>
       <div class="toolbar">
         <label class="chk"><input v-model="autoRefresh" type="checkbox"> 자동 새로고침(3초)</label>
@@ -133,7 +155,7 @@ const ragLabel = computed(() => {
     <!-- ============ 선택한 박스의 장애 목록 ============ -->
     <section class="card">
       <div class="card-head">
-        <h3>{{ box === 'urgent' ? urgentLabel : currentBox.label }} 목록 <span class="sub">{{ list.length }}건 · {{ PERIODS.find((p) => p.key === period).label }}</span></h3>
+        <h3>{{ box === 'urgent' ? urgentLabel : currentBox.label }} 목록 <span class="sub">{{ list.length }}건 · {{ rangeLabel }}</span></h3>
         <span class="muted small">행을 누르면 장애 상세정보로 이동</span>
       </div>
       <div class="tbl-wrap">
@@ -189,9 +211,9 @@ const ragLabel = computed(() => {
 <style scoped>
 .small { font-size: 12px; }
 .mon-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
-.period { display: inline-flex; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 9px; padding: 3px; }
-.period button { font: inherit; font-size: 13px; font-weight: 600; color: var(--text-2); background: none; border: none; border-radius: 6px; padding: 5px 14px; cursor: pointer; }
-.period button.on { background: var(--text); color: #fff; }
+.dates { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dates-label { font-size: 13px; font-weight: 600; color: var(--text-2); margin-right: 2px; }
+.dates input { padding: 5px 8px; }
 
 .boxes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 @media (max-width: 1100px) { .boxes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

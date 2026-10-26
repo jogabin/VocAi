@@ -84,11 +84,26 @@ def init_schema(reset: bool = False) -> str:
         raw.close()
 
 
+def reset_users() -> None:
+    """로그인 계정만 초기화: 모든 계정·세션을 지우고 초기 계정(05_users_hr.sql)으로 다시 만든다. 다른 데이터는 유지."""
+    raw = engine.raw_connection()
+    try:
+        cur = raw.cursor()
+        cur.execute("DELETE FROM voc_user")          # 세션(voc_session)은 FK CASCADE 로 함께 삭제
+        raw.commit()
+    except Exception:
+        raw.rollback()
+        raise
+    finally:
+        raw.close()
+    init_schema()                                     # 계정 시드 재입력 (나머지 SQL 은 이미 있으면 그대로)
+
+
 def init_if_empty() -> None:
     """빈 DB(배포 환경 첫 실행)일 때만 테이블 + 시드를 만든다. 이미 있으면 아무것도 하지 않음."""
     if inspect(engine).has_table("voc_user"):
         return
-    log.info("VOC 테이블이 없어 초기화합니다 (초기 로그인 계정: admin / admin1234)")
+    log.info("VOC 테이블이 없어 초기화합니다 (초기 로그인 계정: admin / admin, user01 / user01, user02 / user02)")
     init_schema()
 
 

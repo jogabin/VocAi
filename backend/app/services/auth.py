@@ -29,7 +29,7 @@ _TOUCH_SEC = 60           # 세션 만료 연장은 최대 1분에 한 번만 DB
 
 ROLES = ("상담사", "센터관리자", "IT담당자", "시스템관리자")
 CONSULT_ROLES = ("상담사", "센터관리자", "시스템관리자")      # SCR-02, SCR-03
-CRITERIA_ROLES = ("IT담당자", "시스템관리자")                  # SCR-08
+CRITERIA_ROLES = ("시스템관리자",)                             # SCR-08 판별기준 관리
 SYS_ADMIN = "시스템관리자"                                  # SCR-06, 07, 09, 10
 
 DEV_USER = {"user_id": None, "login_id": "dev", "user_name": "개발모드", "auth_role": SYS_ADMIN,

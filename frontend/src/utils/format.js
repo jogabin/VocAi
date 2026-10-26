@@ -12,6 +12,13 @@ export function fmtDateTime(v) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+// 날짜 입력(type=date) 값: YYYY-MM-DD (브라우저 현지 날짜). days 만큼 앞/뒤로 이동
+export function fmtDate(v = new Date(), days = 0) {
+  const d = new Date(v)
+  d.setDate(d.getDate() + days)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 export function fmtDuration(sec) {
   if (sec == null) return '-'
   return `${Math.floor(sec / 60)}분 ${pad(sec % 60)}초`

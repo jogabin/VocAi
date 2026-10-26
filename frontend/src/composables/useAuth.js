@@ -49,7 +49,7 @@ async function logout() {
 export const ROLES = ['상담사', '센터관리자', 'IT담당자', '시스템관리자']
 export const ROLE_ALL = ROLES
 export const ROLE_CONSULT = ['상담사', '센터관리자', '시스템관리자']   // SCR-02, SCR-03
-export const ROLE_CRITERIA = ['IT담당자', '시스템관리자']               // SCR-08
+export const ROLE_CRITERIA = ['시스템관리자']                         // SCR-08 판별기준 관리
 export const ROLE_SYS = ['시스템관리자']                              // SCR-06, 07, 09, 10
 
 const role = computed(() => state.user?.auth_role || '')

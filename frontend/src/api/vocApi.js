@@ -1,10 +1,12 @@
 import http from './http'
 
 /* ---------- STT 원문조회 API ---------- */
-export async function fetchSttCalls({ keyword, registered, consultStatus, limit = 50, offset = 0 } = {}) {
+export async function fetchSttCalls({ keyword, registered, consultStatus, dateFrom, dateTo, limit = 50, offset = 0 } = {}) {
   const params = { limit, offset }
   if (keyword) params.keyword = keyword
   if (consultStatus) params.consult_status = consultStatus
+  if (dateFrom) params.date_from = dateFrom   // 통화 시작일 (YYYY-MM-DD)
+  if (dateTo) params.date_to = dateTo
   if (registered !== undefined && registered !== null && registered !== '') params.registered = registered
   const { data } = await http.get('/stt', { params })
   return data
@@ -48,12 +50,14 @@ export async function fetchOwners(errorType) {
 }
 
 /* ---------- 장애알림정보 API ---------- */
-export async function fetchIncidents({ status, openOnly, box, period, limit = 50 } = {}) {
+export async function fetchIncidents({ status, openOnly, box, period, dateFrom, dateTo, limit = 50 } = {}) {
   const params = { limit }
   if (status) params.status = status
   if (openOnly) params.open_only = true
   if (box) params.box = box          // registered | urgent | messaged | same_type | resolved
   if (period) params.period = period // today | 7d | all
+  if (dateFrom) params.date_from = dateFrom   // 장애 등록일 (YYYY-MM-DD)
+  if (dateTo) params.date_to = dateTo
   const { data } = await http.get('/incidents', { params })
   return data
 }
@@ -103,8 +107,11 @@ export async function rerunAgent(consultId) {
 }
 
 // 장애 알림 모니터 건수 박스
-export async function fetchMonitorCounts(period = 'today') {
-  const { data } = await http.get('/monitor/counts', { params: { period } })
+export async function fetchMonitorCounts({ dateFrom, dateTo } = {}) {
+  const params = {}
+  if (dateFrom) params.date_from = dateFrom
+  if (dateTo) params.date_to = dateTo
+  const { data } = await http.get('/monitor/counts', { params })
   return data
 }
 

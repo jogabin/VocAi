@@ -92,16 +92,24 @@ INSERT INTO severity_grade (grade_code, grade_name, grade_order, definition, jud
  ('P2', '높음', 2,
   '로그인·인증·이체 등 핵심 기능을 사용할 수 없는 장애',
   '특정 OS·앱 버전에서 로그인 실패, 공동인증서 인증 모듈 오류, 타행이체 처리 지연',
-  1, '담당,부담당', '[장애알림]', 'system', 'system', '초기 데이터: rules.py 기준 이관'),
+  NULL, '담당,부담당', '[장애알림]', 'system', 'system', '초기 데이터: rules.py 기준 이관 (알림 없음 - 알림은 P1만)'),
  ('P3', '보통', 3,
   '일부 기능 지연이나 화면 오류로 불편하지만 우회가 가능한 장애',
   '거래내역 조회 지연, 특정 브라우저에서 버튼 미동작',
-  2, '담당', '[장애알림]', 'system', 'system', '초기 데이터: rules.py 기준 이관 (단건은 관찰, 2건 이상 알림)'),
+  NULL, '담당', '[장애알림]', 'system', 'system', '초기 데이터: rules.py 기준 이관 (알림 없음 - 알림은 P1만)'),
  ('P4', '낮음', 4,
   '영향이 미미하거나 고객 실수·정상 동작으로 보이는 건',
   '비밀번호 5회 오류 잠금, 단순 사용법 문의',
   NULL, '', '[장애알림]', 'system', 'system', '초기 데이터: rules.py 기준 이관 (알림 없음)')
 ON CONFLICT (grade_code) DO NOTHING;
+
+-- 장애 알림 대상을 P1 로 한정: 이전 초기 데이터로 만든 DB 의 P2·P3 알림 조건을 비움
+-- (판별기준 관리 화면에서 고친 행은 change_reason 이 바뀌므로 건드리지 않음)
+UPDATE severity_grade
+   SET notify_min_reports = NULL, updated_by = 'system', updated_at = now(),
+       change_reason = '초기 데이터: 알림 대상 P1 한정 (P2·P3 알림 없음)'
+ WHERE grade_code IN ('P2', 'P3') AND notify_min_reports IS NOT NULL
+   AND change_reason LIKE '초기 데이터: rules.py 기준 이관%';
 
 INSERT INTO severity_base_rule (error_type, channel, system_name, base_grade, rationale,
                                 created_by, updated_by, change_reason)

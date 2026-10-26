@@ -12,7 +12,7 @@
 - 에이전트 그래프 구조    GET  /api/agent-graph   (LangGraph 흐름도 / mermaid)
 - 장애등급 판별기준       GET  /api/severity-criteria, POST·PATCH .../grades | base-rules | adjust-rules
 """
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
@@ -32,11 +32,12 @@ IncidentStatus = Literal["관찰", "접수", "확인중", "해결", "오탐"]
 # =====================================================================
 # STT 원문조회 API
 # =====================================================================
-@router.get("/stt", summary="STT 통화 목록 (상담현황: consult_status=진행|상담완료)")
+@router.get("/stt", summary="STT 통화 목록 (상담현황: consult_status=진행|상담완료, 통화일 date_from~date_to)")
 def list_stt(db: DB, keyword: str | None = None, registered: bool | None = None,
              consult_status: Literal["진행", "상담완료"] | None = None,
+             date_from: date | None = None, date_to: date | None = None,
              limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
-    return repo.list_stt_calls(db, keyword, registered, limit, offset, consult_status)
+    return repo.list_stt_calls(db, keyword, registered, limit, offset, consult_status, date_from, date_to)
 
 
 @router.get("/stt/{call_id}", summary="STT 원문 조회 (발화 목록 포함)")
@@ -166,12 +167,13 @@ Box = Literal["registered", "urgent", "messaged", "same_type", "resolved"]
 Period = Literal["today", "7d", "all"]
 
 
-@router.get("/incidents", summary="장애 알림 목록 (box: 모니터 건수 박스, period: today|7d|all)")
+@router.get("/incidents", summary="장애 알림 목록 (box: 모니터 건수 박스, 등록일 date_from~date_to)")
 def list_incidents(db: DB, status: IncidentStatus | None = None, open_only: bool = False,
                    box: Box | None = None, period: Period | None = None,
+                   date_from: date | None = None, date_to: date | None = None,
                    limit: int = Query(50, ge=1, le=300)):
     top = criteria.load(db).codes()[0]
-    return repo.list_incidents(db, status, open_only, limit, box, period, top)
+    return repo.list_incidents(db, status, open_only, limit, box, period, top, date_from, date_to)
 
 
 @router.get("/incidents/{incident_id}", summary="장애 알림 상세 (제보/메신저 이력 포함)")
@@ -338,12 +340,12 @@ def rerun(body: RerunIn, db: DB, background: BackgroundTasks, _: auth.SysAdminUs
     return {"run_id": run_id}
 
 
-@router.get("/monitor/counts", summary="장애 알림 모니터 건수 박스")
-def monitor_counts(db: DB, period: Period = "today"):
+@router.get("/monitor/counts", summary="장애 알림 모니터 건수 박스 (등록일 date_from~date_to)")
+def monitor_counts(db: DB, period: Period | None = None, date_from: date | None = None, date_to: date | None = None):
     cr = criteria.load(db)
     top = cr.codes()[0]
-    return {**repo.monitor_counts(db, period, top), "period": period, "top_grade": top,
-            "top_grade_label": cr.label(top)}
+    return {**repo.monitor_counts(db, period, top, date_from, date_to), "period": period,
+            "date_from": date_from, "date_to": date_to, "top_grade": top, "top_grade_label": cr.label(top)}
 
 
 @router.get("/monitor/summary", summary="모니터 화면 요약 지표")
@@ -471,7 +473,7 @@ def _audit(body: Audit, exclude: set = frozenset(), admin: dict | None = None) -
 
 
 @router.get("/severity-criteria", summary="장애등급 판별기준 전체 조회 (현재 적용 버전 포함)")
-def get_criteria(db: DB):
+def get_criteria(db: DB, admin: auth.CriteriaUser):
     return criteria.list_all(db)
 
 

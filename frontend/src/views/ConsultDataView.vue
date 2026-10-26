@@ -1,11 +1,13 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { fetchCustomers, fetchEmployees, createConsultData, readDialogExcel, downloadDialogTemplate } from '../api/adminApi'
+import { fetchSttCall } from '../api/vocApi'
 import { useHashRoute, navigate } from '../composables/useHashRoute'
 import ChatTranscript from '../components/voc/ChatTranscript.vue'
 
 /* 상담데이터 등록: 상담현황 목록에 표출될 기초 상담데이터(통화 정보 + 고객·상담사 대화) 등록
-   등록하면 '진행' 상태의 상담이 생성되고, 이후 흐름(상담이력등록 → 에이전트)은 기존과 같습니다. */
+   등록하면 '진행' 상태의 상담이 생성되고, 이후 흐름(상담이력등록 → 에이전트)은 기존과 같습니다.
+   상담이력등록 화면의 [원문대화 복사등록]으로 들어오면(#/consult-data?copy=CALL-xxxx) 그 통화의 고객·상담사·대화를 채워 둡니다. */
 
 const { query } = useHashRoute()
 const pad = (n) => String(n).padStart(2, '0')
@@ -16,6 +18,7 @@ const custKeyword = ref('')
 const saving = ref(false)
 const error = ref('')
 const done = ref(null)          // 등록 결과 { call_id, ... }
+const copyMsg = ref('')         // 원문대화 복사 안내
 
 let lineId = 0
 const newLine = (speaker, text = '') => ({ id: ++lineId, speaker, text })
@@ -124,6 +127,7 @@ async function submit() {
   if (error.value) return
   saving.value = true
   try {
+    copyMsg.value = ''
     done.value = await createConsultData({
       customer_id: form.customer_id,
       agent_emp_id: Number(form.agent_emp_id),
@@ -146,10 +150,21 @@ onMounted(async () => {
     customers.value = c
     agents.value = a
     if (query.value.customer && c.some((x) => x.customer_id === query.value.customer)) form.customer_id = query.value.customer
+    if (query.value.copy) await copyFromCall(query.value.copy)
   } catch (e) {
     error.value = e.message
   }
 })
+
+// 원문대화 복사: 원본 통화의 고객·상담사·대화를 그대로 채움 (상담일자·시간은 지금, 등록은 [등록] 버튼으로)
+async function copyFromCall(callId) {
+  const src = await fetchSttCall(callId)
+  if (customers.value.some((x) => x.customer_id === src.customer_id)) form.customer_id = src.customer_id
+  if (agents.value.some((a) => a.emp_id === src.agent_emp_id)) form.agent_emp_id = src.agent_emp_id
+  form.lines = src.utterances.map((u) => newLine(u.speaker, u.text))
+  copyMsg.value = `${src.call_id} 원문 대화 ${src.utterances.length}건을 복사했습니다. 내용을 확인·수정한 뒤 등록하세요.`
+  navigate('/consult-data')       // 새로고침 시 다시 덮어쓰지 않도록 주소에서 copy 제거
+}
 </script>
 
 <template>
@@ -160,6 +175,8 @@ onMounted(async () => {
         <p>상담현황 목록에 표출될 기초 상담데이터(통화 정보 + 고객·상담사 대화)를 등록합니다. 등록하면 '진행' 상태의 상담이 생성됩니다.</p>
       </div>
     </div>
+
+    <div v-if="copyMsg && !done" class="copy-box">{{ copyMsg }}</div>
 
     <div v-if="done" class="done-box">
       <div>
@@ -284,6 +301,7 @@ onMounted(async () => {
 .ops button { font: inherit; font-size: 11px; width: 24px; height: 26px; border: 1px solid var(--line); background: var(--surface); border-radius: 6px; color: var(--text-2); cursor: pointer; }
 .ops button:disabled { opacity: .35; cursor: default; }
 .ops button:hover:not(:disabled) { background: var(--surface-2); }
+.copy-box { background: var(--accent-soft); border: 1px solid var(--line); color: var(--text); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px; font-size: 13px; }
 .done-box { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--ok-soft); border: 1px solid #bfe5d0; color: #0d5c37; border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px; font-size: 13px; }
 .err { margin: 0 0 10px; }
 .excel-bar { margin-bottom: 8px; }

@@ -144,7 +144,7 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
                 sev = mass_rule["target_grade"]          # 대규모 장애 신호는 LLM 판단보다 우선
             else:
                 sev = ans["severity"]
-            notify = bool(ans.get("notify", cr.should_notify(sev, count)))
+            notify = cr.should_notify(sev, count)    # 알림 여부는 등급별 알림 조건(판별기준)으로만 결정
             analysis = ans.get("analysis")
             applied.append("LLM")
             reasons.append(f"LLM: {ans.get('reason', '')}")

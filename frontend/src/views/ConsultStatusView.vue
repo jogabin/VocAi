@@ -3,10 +3,10 @@ import { computed, ref } from 'vue'
 import { fetchSttCalls } from '../api/vocApi'
 import { navigate } from '../composables/useHashRoute'
 import { usePolling } from '../composables/usePolling'
-import { fmtDateTime, fmtDuration, timeAgo } from '../utils/format'
+import { fmtDate, fmtDateTime, fmtDuration } from '../utils/format'
 
-/* 상담현황 목록: 상담 진행 중인 통화와 상담완료 통화를 실시간(5초)으로 표시.
-   행을 누르면 상담이력등록 화면으로 이동합니다. */
+/* 상담현황 목록: 조회 기간(통화 시작일)의 상담 진행 중인 통화와 상담완료 통화를 실시간(5초)으로 표시.
+   행을 누르면 상담이력등록 화면으로 이동합니다. 상담이력이 등록된 통화는 [등록완료] 버튼으로 등록 내용을 봅니다. */
 
 const TABS = [
   { key: '', label: '전체' },
@@ -16,6 +16,8 @@ const TABS = [
 const all = ref([])
 const tab = ref('')
 const keyword = ref('')
+const dateFrom = ref(fmtDate(new Date(), -6))   // 기본 조회 기간: 오늘 포함 최근 7일
+const dateTo = ref(fmtDate())
 const loading = ref(false)
 const error = ref('')
 const updatedAt = ref(null)
@@ -30,7 +32,13 @@ const counts = computed(() => ({
 async function load() {
   loading.value = true
   try {
-    all.value = await fetchSttCalls({ keyword: keyword.value.trim(), limit: 200 })
+    if (dateFrom.value && dateTo.value && dateFrom.value > dateTo.value) {
+      error.value = '조회 시작일이 종료일보다 늦습니다.'
+      return
+    }
+    all.value = await fetchSttCalls({
+      keyword: keyword.value.trim(), dateFrom: dateFrom.value, dateTo: dateTo.value, limit: 200,
+    })
     updatedAt.value = new Date()
     error.value = ''
   } catch (e) {
@@ -54,7 +62,7 @@ usePolling(load, 5000)   // 화면 진입 시 즉시 1회 + 5초마다
     <div class="page-head">
       <div>
         <h2>상담현황</h2>
-        <p>상담 진행 중인 통화와 상담완료 통화를 실시간으로 보여줍니다. 통화를 누르면 상담이력등록 화면으로 이동합니다.</p>
+        <p>조회 기간의 상담 진행 중인 통화와 상담완료 통화를 실시간으로 보여줍니다. 통화를 누르면 상담이력등록 화면으로, [등록완료]를 누르면 등록된 상담이력으로 이동합니다.</p>
       </div>
       <div class="toolbar">
         <span class="live"><span class="dot pulse" /> 5초마다 자동 갱신<template v-if="updatedAt"> · {{ fmtDateTime(updatedAt).slice(11) }}</template></span>
@@ -66,6 +74,11 @@ usePolling(load, 5000)   // 화면 진입 시 즉시 1회 + 5초마다
         {{ t.label }} <span class="cnt">{{ counts[t.key] }}</span>
       </button>
       <form class="seg-right" @submit.prevent="load">
+        <span class="dates">
+          <input v-model="dateFrom" type="date" aria-label="조회 시작일" @change="load">
+          <span class="muted">~</span>
+          <input v-model="dateTo" type="date" aria-label="조회 종료일" @change="load">
+        </span>
         <input v-model="keyword" placeholder="고객명 · 통화ID · 대화내용" style="width: 220px; padding: 6px 10px">
         <button class="btn btn-sm" type="submit" :disabled="loading">조회</button>
       </form>
@@ -92,16 +105,13 @@ usePolling(load, 5000)   // 화면 진입 시 즉시 1회 + 5초마다
               <td class="nowrap muted">{{ fmtDuration(c.duration_sec) }}</td>
               <td><div class="ellipsis">{{ c.preview }}</div></td>
               <td class="nowrap">
-                <template v-if="c.consult_id">
-                  <span class="muted">#{{ c.consult_id }} {{ c.consult_type }}</span>
-                  <div class="muted small">{{ timeAgo(c.consult_created_at) }} · {{ c.registered_by || '-' }}</div>
-                </template>
+                <button v-if="c.consult_id" class="btn btn-sm btn-done" type="button" @click.stop="open(c)">등록완료</button>
                 <span v-else class="go">등록하기 →</span>
               </td>
             </tr>
           </tbody>
         </table>
-        <div v-if="!rows.length && !loading" class="empty">{{ tab ? tab + ' 상태인 상담이 없습니다.' : '상담 내역이 없습니다.' }}</div>
+        <div v-if="!rows.length && !loading" class="empty">조회 기간에 {{ tab ? tab + ' 상태인 상담이 없습니다.' : '상담 내역이 없습니다.' }}</div>
       </div>
     </div>
   </div>
@@ -111,7 +121,10 @@ usePolling(load, 5000)   // 화면 진입 시 즉시 1회 + 5초마다
 .live { font-size: 12px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; }
 .live .dot { color: var(--ok); }
 .badge .dot { width: 6px; height: 6px; }
-.small { font-size: 11.5px; }
+.dates { display: inline-flex; align-items: center; gap: 6px; }
+.dates input { padding: 5px 8px; }
+.btn-done { color: var(--ok); border-color: var(--ok); background: var(--ok-soft); font-weight: 600; }
+.btn-done:hover:not(:disabled) { background: var(--ok-soft); filter: brightness(0.96); }
 .go { font-size: 12.5px; font-weight: 600; color: var(--accent); }
 .tbl tbody tr.on-air td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .err { margin: 0; }
