@@ -78,7 +78,7 @@ def compose(db, inc: dict, sev: dict, consult: dict, primary: list[dict], second
  · 장애번호 : #{inc['incident_id']}
  · 등급 : {inc['severity']} ({label}){'  ※ 동일유형 다발 - 대규모 장애 신호' if inc.get('mass_signal') else ''}
  · 오류유형 : {inc['error_type']} / 접촉채널 : {inc.get('channel') or '-'}
- · 누적 제보 : {inc['report_count']}건 (최초 {first} · 최근 {last})
+ · 누적 제보 : {inc['report_count']}건 · 독립 고객 {inc.get('customer_count') or 1}명 (최초 {first} · 최근 {last})
 
 ▣ 증상
  {inc.get('symptoms') or '-'}
@@ -175,8 +175,12 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
     secondary, resolver_names = secondary_recipients(db, sev.get("similar_cases") or [],
                                                      {e["emp_id"] for e in primary})
     title, body = compose(db, inc, sev, consult, primary, secondary, resolver_names)
-    if notified:
-        title = f"[등급 상향 {notified}→{inc['severity']}]" + title
+    dd = ctx.get("dedup") or {}
+    before = notified or (dd.get("previous_severity") if dd.get("merged") else None)
+    if before and before != inc["severity"]:
+        title = f"[등급 상향 {before}→{inc['severity']}]" + title
+        changed = "; ".join(r for r in sev.get("reasons") or [] if r.startswith("[")) or "-"
+        body = body.replace("▣ 증상", f"▣ 등급 변경\n 이전 {before} → 현재 {inc['severity']} (근거: {changed})\n\n▣ 증상", 1)
     link = detail_url(inc["incident_id"])
     targets = [{"receiver": e["messenger_id"], "receiver_name": e["emp_name"], "emp_id": e["emp_id"],
                 "recipient_type": "1차", "link_url": link} for e in primary]

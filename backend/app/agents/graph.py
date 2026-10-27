@@ -13,6 +13,7 @@
                  │ 미대상/오탐       ┌─────────────┐
                  └─────────────────▶ │  장애이력 등록  │ ──▶ END
                                      └─────────────┘
+  장애감지 ── 개선의견 ──▶ 개선의견 등록 (알림·누적 없음) ──▶ END
 
 각 노드는 실행 시작/종료를 agent_step 테이블에 커밋하므로 모니터 화면에서 실시간으로 볼 수 있습니다.
 """
@@ -21,7 +22,7 @@ from typing import Any, Callable, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
-from app.agents import dedup, detection, notify, severity
+from app.agents import dedup, detection, improve, notify, severity
 from app.database import settings
 from app.services import repo
 
@@ -48,6 +49,7 @@ NODES: dict[str, tuple[Callable, str, str]] = {
     "severity": (severity.run,    severity.NAME,    "1차 판별기준 알림 대상 판정 → 2차 과거 오탐 사례 대조 중"),
     "notify":   (notify.run,      notify.NAME,      "1차·2차 수신자 식별 · 알림 템플릿 작성 · 메신저 전송 중"),
     "record":   (notify.run_record, notify.RECORD_NAME, "장애알림 정보 등록 중 (메신저 미발송)"),
+    "improve":  (improve.run,     improve.NAME,     "개선의견 기록 · 관련 장애 연결 중 (알림 없음)"),
 }
 
 
@@ -76,7 +78,10 @@ def _make_node(node_id: str, db, run_id: int) -> Callable[[AgentState], dict]:
 
 # ---------- 조건 분기 ----------
 def route_after_detect(state: AgentState) -> str:
-    return "incident" if state["detection"]["is_incident"] else "normal"
+    det = state["detection"]
+    if det.get("category") == "개선의견":
+        return "improve"
+    return "incident" if det["is_incident"] else "normal"
 
 
 def route_after_severity(state: AgentState) -> str:
@@ -89,11 +94,12 @@ def build_graph(db=None, run_id: int = 0):
         g.add_node(node_id, _make_node(node_id, db, run_id))
 
     g.add_edge(START, "detect")
-    g.add_conditional_edges("detect", route_after_detect, {"incident": "dedup", "normal": END})
+    g.add_conditional_edges("detect", route_after_detect, {"incident": "dedup", "improve": "improve", "normal": END})
     g.add_edge("dedup", "severity")
     g.add_conditional_edges("severity", route_after_severity, {"notify": "notify", "record": "record"})
     g.add_edge("notify", END)
     g.add_edge("record", END)
+    g.add_edge("improve", END)
     return g.compile()
 
 
@@ -104,6 +110,8 @@ GRAPH_SPEC = {
         {"from": "__start__", "to": "detect"},
         {"from": "detect", "to": "dedup", "label": "장애 감지"},
         {"from": "detect", "to": "__end__", "label": "장애 아님"},
+        {"from": "detect", "to": "improve", "label": "개선의견"},
+        {"from": "improve", "to": "__end__"},
         {"from": "dedup", "to": "severity"},
         {"from": "severity", "to": "notify", "label": "알림 대상"},
         {"from": "severity", "to": "record", "label": "미대상·오탐"},

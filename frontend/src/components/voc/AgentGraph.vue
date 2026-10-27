@@ -11,6 +11,7 @@ const NAME_TO_NODE = {
   '담당자식별·알림 에이전트': 'notify',
   '메신저 전송 에이전트': 'notify',
   '장애이력 등록': 'record',
+  '개선의견 등록': 'improve',
 }
 
 const NODES = {
@@ -20,6 +21,7 @@ const NODES = {
   severity: { x: 570, y: 140, label: '심각도 판별', sub: '판별기준 → 오탐 대조' },
   notify:   { x: 780, y: 62,  label: '메신저 전송', sub: '1차 · 2차 수신자' },
   record:   { x: 780, y: 218, label: '장애이력 등록', sub: '메신저 미발송' },
+  improve:  { x: 370, y: 248, label: '개선의견 등록', sub: '알림 · 누적 없음' },
   end:      { x: 930, y: 140, label: 'END', kind: 'terminal' },
 }
 const W = 128
@@ -28,12 +30,14 @@ const H = 54
 const EDGES = [
   { from: 'start', to: 'detect' },
   { from: 'detect', to: 'dedup', label: '장애 감지' },
-  { from: 'detect', to: 'end', label: '장애 아님', bottom: true },
+  { from: 'detect', to: 'end', label: '장애 아님', lane: 330 },
+  { from: 'detect', to: 'improve', label: '개선의견' },
   { from: 'dedup', to: 'severity' },
   { from: 'severity', to: 'notify', label: '알림 대상' },
   { from: 'severity', to: 'record', label: '미대상 · 오탐' },
   { from: 'notify', to: 'end' },
   { from: 'record', to: 'end' },
+  { from: 'improve', to: 'end', lane: 306 },
 ]
 
 const steps = computed(() => (props.run?.steps || []).map((s) => ({
@@ -68,10 +72,10 @@ function anchor(id, side) {
   return [n.x, n.y]
 }
 function edgePath(e) {
-  if (e.bottom) {
+  if (e.lane) {   // 아래 통로(y=lane)로 돌아가는 선
     const [x1, y1] = anchor(e.from, 'bottom')
     const [x2, y2] = anchor(e.to, 'bottom')
-    return { d: `M${x1},${y1} L${x1},282 L${x2},282 L${x2},${y2 + 2}`, lx: (x1 + x2) / 2, ly: 276 }
+    return { d: `M${x1},${y1} L${x1},${e.lane} L${x2},${e.lane} L${x2},${y2 + 2}`, lx: (x1 + x2) / 2, ly: e.lane - 6 }
   }
   const [x1, y1] = anchor(e.from, 'right')
   const [x2, y2] = anchor(e.to, 'left')
@@ -83,7 +87,7 @@ const edges = computed(() => EDGES.map((e) => ({ ...e, ...edgePath(e), on: edgeO
 </script>
 
 <template>
-  <svg class="agent-graph" viewBox="0 0 970 300" role="img" aria-label="LangGraph 에이전트 흐름도">
+  <svg class="agent-graph" viewBox="0 0 970 345" role="img" aria-label="LangGraph 에이전트 흐름도">
     <defs>
       <marker id="ag-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
         <path d="M0,0 L10,5 L0,10 z" class="arrow-off" />

@@ -225,10 +225,11 @@ _INCIDENT_COLS = {
     "title", "error_type", "channel", "severity", "status", "report_count", "mass_signal",
     "symptoms", "env_info", "analysis", "similar_cases", "owner_id", "notified_severity",
     "resolution", "last_reported_at", "resolved_at", "criteria_version", "applied_rules",
-    "owner_emp_id", "resolved_by_emp_id",
+    "owner_emp_id", "resolved_by_emp_id", "customer_count",
 }
 _JSON_COLS = {"env_info", "similar_cases", "applied_rules"}
-_OPTIONAL_COLS = {"criteria_version", "applied_rules"}   # sql/04_severity_criteria.sql 실행 후 생기는 컬럼
+_OPTIONAL_COLS = {"criteria_version", "applied_rules",   # sql/04_severity_criteria.sql 실행 후 생기는 컬럼
+                  "customer_count"}                       # sql/10_impact_improvement.sql 실행 후 생기는 컬럼
 _col_cache = {"at": 0.0, "cols": set()}
 
 
@@ -279,6 +280,49 @@ def add_incident_report(db: Session, incident_id: int, consult_id: int, similari
         INSERT INTO incident_report (incident_id, consult_id, similarity)
         VALUES (:iid, :cid, :sim) ON CONFLICT DO NOTHING
     """), {"iid": incident_id, "cid": consult_id, "sim": similarity})
+
+
+def count_incident_customers(db: Session, incident_id: int) -> int:
+    """장애에 연결된 상담의 독립 고객 수 (같은 고객의 재문의·중복 등록은 1명)."""
+    return int(db.execute(text("""
+        SELECT count(DISTINCT h.customer_id) FROM incident_report r
+          JOIN consult_history h ON h.consult_id = r.consult_id
+         WHERE r.incident_id = :iid
+    """), {"iid": incident_id}).scalar() or 0)
+
+
+def recent_incidents_for_link(db: Session, days: int) -> list[dict]:
+    """개선의견과 연결할 최근 장애 (오탐 제외)."""
+    return _rows(db.execute(text("""
+        SELECT incident_id, title, symptoms, status FROM incident_alert
+         WHERE status <> '오탐' AND last_reported_at >= now() - make_interval(days => :d)
+         ORDER BY last_reported_at DESC LIMIT 200
+    """), {"d": days}))
+
+
+def create_improvement(db: Session, data: dict) -> dict:
+    return _row(db.execute(text("""
+        INSERT INTO improvement_opinion (consult_id, call_id, customer_id, customer_name, error_type, channel,
+                                         title, content, customer_excerpt, related_incident_id)
+        VALUES (:consult_id, :call_id, :customer_id, :customer_name, :error_type, :channel,
+                :title, :content, :customer_excerpt, :related_incident_id)
+        RETURNING *
+    """), data))
+
+
+def list_improvements(db: Session, date_from=None, date_to=None, limit: int = 100) -> list[dict]:
+    conds, params = [], {"limit": limit}
+    _date_conds("o.created_at", date_from, date_to, conds, params)
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    return _rows(db.execute(text(f"""
+        SELECT o.*, h.agent_name, i.title AS related_title, i.status AS related_status
+          FROM improvement_opinion o
+          LEFT JOIN consult_history h ON h.consult_id = o.consult_id
+          LEFT JOIN incident_alert i ON i.incident_id = o.related_incident_id
+          {where}
+         ORDER BY o.created_at DESC
+         LIMIT :limit
+    """), params))
 
 
 def find_open_incidents(db: Session, error_type: str, window_min: int) -> list[dict]:

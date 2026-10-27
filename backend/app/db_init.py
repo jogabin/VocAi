@@ -11,6 +11,7 @@ log = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parent.parent
 
 VOC_TABLES = [
+    "improvement_opinion",
     "customer",
     "incident_action",
     "voc_session", "voc_user", "employee",
@@ -28,6 +29,8 @@ SQL_FILES = [
     "07_incident_process.sql",     # 장애 처리 이력
     "08_customer_consult_data.sql",  # 고객정보 · 상담데이터 등록
     "09_auth_roles.sql",           # 로그인 권한 4종 (상담사/센터관리자/IT담당자/시스템관리자)
+    "10_impact_improvement.sql",   # 영향 기반 판별 보강 · 독립 고객 수 · 개선의견
+    "11_demo_scripts.sql",         # 등급별 시연 STT 원문 16건 + 누적 제보용 사전 통화
 ]
 
 EMBED_TABLE = """

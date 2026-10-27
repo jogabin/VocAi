@@ -176,6 +176,12 @@ def list_incidents(db: DB, status: IncidentStatus | None = None, open_only: bool
     return repo.list_incidents(db, status, open_only, limit, box, period, top, date_from, date_to)
 
 
+@router.get("/improvements", summary="개선의견 목록 (알림 없이 기록만, 등록일 date_from~date_to)")
+def list_improvements(db: DB, date_from: date | None = None, date_to: date | None = None,
+                      limit: int = Query(100, ge=1, le=300)):
+    return repo.list_improvements(db, date_from, date_to, limit)
+
+
 @router.get("/incidents/{incident_id}", summary="장애 알림 상세 (제보/메신저 이력 포함)")
 def get_incident(incident_id: int, db: DB):
     inc = repo.get_incident(db, incident_id)
@@ -367,7 +373,7 @@ def agent_graph():
 # =====================================================================
 GradeCode = str
 RuleType = Literal["KEYWORD", "REPORT_COUNT", "MASS_SIGNAL", "FALSE_POSITIVE"]
-ActionType = Literal["RAISE", "SET_GRADE", "FALSE_POSITIVE"]
+ActionType = Literal["RAISE", "SET_GRADE", "RAISE_TO", "LOWER_TO", "FALSE_POSITIVE"]
 
 
 class Audit(BaseModel):

@@ -7,6 +7,7 @@ import ConsultStatusView from './views/ConsultStatusView.vue'
 import ConsultRegisterView from './views/ConsultRegisterView.vue'
 import IncidentMonitorView from './views/IncidentMonitorView.vue'
 import IncidentDetailView from './views/IncidentDetailView.vue'
+import ImprovementView from './views/ImprovementView.vue'
 import CriteriaView from './views/CriteriaView.vue'
 import UserAdminView from './views/UserAdminView.vue'
 import EmployeeView from './views/EmployeeView.vue'
@@ -14,7 +15,7 @@ import CustomerView from './views/CustomerView.vue'
 import ConsultDataView from './views/ConsultDataView.vue'
 import ApiTestView from './views/ApiTestView.vue'
 
-// vue-router 없이 해시 기반 화면 전환 (#/stt, #/consult, #/monitor, #/incident, #/criteria, #/users, #/employees, #/customers, #/consult-data)
+// vue-router 없이 해시 기반 화면 전환 (#/stt, #/consult, #/monitor, #/incident, #/improvements, #/criteria, #/users, #/employees, #/customers, #/consult-data)
 // 로그인 전에는 어느 주소로 들어와도 로그인 화면을 보여주고, 로그인하면 원래 주소의 화면을 엽니다.
 const { path } = useHashRoute()
 const auth = useAuth()
@@ -27,6 +28,7 @@ const MENUS = [
   { id: 'SCR-04', path: '/monitor', label: '장애 알림 모니터', view: IncidentMonitorView, roles: ROLE_ALL },
   // 장애 상세정보: 모니터 목록 · 메신저 알림 링크(#/incident?id=N)로 진입
   { id: 'SCR-05', path: '/incident', label: '장애 상세정보', view: IncidentDetailView, roles: ROLE_ALL, hidden: true, parent: '/monitor' },
+  { id: 'SCR-11', path: '/improvements', label: '개선의견 목록', view: ImprovementView, roles: ROLE_ALL },
   { id: 'SCR-06', path: '/users', label: '사용자관리', view: UserAdminView, roles: ROLE_SYS },
   { id: 'SCR-07', path: '/employees', label: '인사정보 관리', view: EmployeeView, roles: ROLE_SYS },
   { id: 'SCR-08', path: '/criteria', label: '판별기준 관리', view: CriteriaView, roles: ROLE_CRITERIA },

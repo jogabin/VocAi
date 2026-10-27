@@ -32,6 +32,8 @@ const RULE_TYPES = {
 const ACTION_TYPES = {
   RAISE: '등급 상향',
   SET_GRADE: '등급 지정',
+  RAISE_TO: '최소 등급',
+  LOWER_TO: '최대 등급',
   FALSE_POSITIVE: '오탐 처리',
 }
 const SOURCE_DESC = {
@@ -197,7 +199,7 @@ function openNew() {
 const needKeywords = computed(() => ['KEYWORD', 'FALSE_POSITIVE'].includes(form.rule_type))
 const needThreshold = computed(() => ['REPORT_COUNT', 'MASS_SIGNAL'].includes(form.rule_type))
 const needSteps = computed(() => form.action_type === 'RAISE')
-const needTarget = computed(() => ['SET_GRADE', 'FALSE_POSITIVE'].includes(form.action_type))
+const needTarget = computed(() => ['SET_GRADE', 'RAISE_TO', 'LOWER_TO', 'FALSE_POSITIVE'].includes(form.action_type))
 
 /* ---------- 저장 ---------- */
 const nul = (v) => (v === '' || v === undefined ? null : v)
@@ -339,6 +341,8 @@ function ruleSummary(r) {
   let act
   if (r.action_type === 'RAISE') act = `${r.raise_steps || 1}단계 상향`
   else if (r.action_type === 'SET_GRADE') act = `${r.target_grade}로 지정`
+  else if (r.action_type === 'RAISE_TO') act = `${r.target_grade} 미만이면 ${r.target_grade}로 상향`
+  else if (r.action_type === 'LOWER_TO') act = `${r.target_grade}보다 높으면 ${r.target_grade}로 조정`
   else act = `오탐 처리${r.target_grade ? ` (${r.target_grade})` : ''}`
   return `${cond} → ${act}`
 }
@@ -612,7 +616,7 @@ onMounted(load)
               <div v-if="needKeywords" class="field">
                 <label>키워드</label>
                 <textarea v-model="form.keywords" rows="2" placeholder="쉼표로 구분: 출금, 전액, 돈이 빠져" />
-                <span class="hint">고객 발화에 하나라도 포함되면 적용됩니다.</span>
+                <span class="hint">고객 발화에 하나라도 포함되면 적용됩니다. '그룹:단어' 형식(예: 기한:분 남았)은 그룹마다 하나 이상 포함돼야 적용됩니다.</span>
               </div>
               <div v-if="needThreshold" class="field">
                 <label>기준 제보 건수</label>

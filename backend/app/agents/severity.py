@@ -4,7 +4,7 @@
 (테이블이 없거나 비어 있으면 rules.py 코드 기본값)
 
 1차: 판별기준(판별기준 조회 API /api/severity-criteria 와 같은 서비스)으로 메신저 알림 대상 여부 식별
-     - 기본 등급(오류유형·접촉채널) + 조정 규칙(적용순서: 키워드 상향, 복수 제보, 대규모 신호)
+     - 기본 등급(오류유형·접촉채널) + 조정 규칙(적용순서: 지속 차단, 키워드 상향, 기한 임박, 정상 진행, 복수 제보, 대규모 신호)
      - 등급별 알림 조건(알림 최소 제보 건수)으로 알림 대상 판정
      - LLM 사용 시 같은 등급 정의를 프롬프트로 주고 등급·알림 여부를 함께 판단
 2차: 1차에서 알림 대상일 때만, 과거 장애 사례(RAG) 중 '오탐'으로 판별된 건과 대조
@@ -21,6 +21,8 @@ BIGRAM_FP_THRESHOLD = 0.25   # 문자열 유사도(대체 방식)일 때 오탐 
 
 SYSTEM_TMPL = """당신은 금융 IT 장애 심각도 판별 에이전트입니다.
 아래 장애등급 판별기준과 규칙 기반 1차 판별 결과를 보고 심각도 등급과 메신저 알림 대상 여부를 결정하세요.
+등급은 고객이 말한 사실(재시도 후에도 계속 막히는지, 지급·신청 기한, 구체적 피해, 대체수단 유무, 같은 증상의 독립 고객 수)로 판단하고 오류 원인은 단정하지 마세요.
+상담사의 마무리·전달 멘트(예: "긴급 건으로 전달하겠습니다")는 응대 표현일 뿐이므로 등급 판단 근거로 쓰지 마세요.
 [장애등급 판별기준]
 {definitions}
 출력 JSON: {{"severity": "{codes}", "notify": bool,
@@ -80,12 +82,13 @@ def _apply_adjust_rules(cr, det: dict, dd: dict, text: str, sev: str, count: int
             continue
         hit = None
         if r["rule_type"] == "KEYWORD":
-            words = rules.contains_any(text, list(r.get("keywords") or []))
+            words = rules.match_keyword_groups(text, list(r.get("keywords") or []))
             hit = f"키워드 {words}" if words else None
         elif r["rule_type"] == "REPORT_COUNT":
             hit = f"누적 제보 {count}건 ≥ {r['threshold']}" if r.get("threshold") and count >= r["threshold"] else None
         elif r["rule_type"] == "MASS_SIGNAL":
-            hit = f"대규모 장애 신호(누적 {count}건)" if dd.get("mass_signal") else None
+            hit = (f"대규모 장애 신호(독립 고객 {dd.get('customer_count', count)}명, 누적 {count}건)"
+                   if dd.get("mass_signal") else None)
         if not hit:
             continue
         before = sev
@@ -93,6 +96,15 @@ def _apply_adjust_rules(cr, det: dict, dd: dict, text: str, sev: str, count: int
             sev = cr.raise_by(sev, r.get("raise_steps") or 1)
         elif r["action_type"] == "SET_GRADE" and r.get("target_grade"):
             sev = r["target_grade"]
+        elif r["action_type"] == "RAISE_TO" and r.get("target_grade"):
+            sev = cr.max(sev, r["target_grade"])          # 최소 이 등급 (더 심각하면 유지)
+        elif r["action_type"] == "LOWER_TO" and r.get("target_grade"):
+            if dd.get("mass_signal"):
+                continue                                   # 대규모 신호는 내리지 않음
+            if cr.max(sev, r["target_grade"]) == sev:
+                sev = r["target_grade"]                    # 최대 이 등급 (덜 심각하면 유지)
+        if sev == before and r["action_type"] in ("RAISE_TO", "LOWER_TO"):
+            continue                                       # 등급 변화 없음 → 적용 규칙으로 남기지 않음
         applied.append(r["rule_code"])
         reasons.append(f"[{r['rule_code']}] {r['rule_name']}: {hit} → {before}→{sev}")
     return sev
@@ -127,11 +139,14 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
 
     if llm.enabled():
         system = SYSTEM_TMPL.format(definitions=cr.llm_definitions(), codes="|".join(cr.codes()))
-        ans = llm.ask_json(system, f"""[감지 결과]
+        ans = llm.ask_json(system, f"""[고객 발화]
+{text}
+
+[감지 결과]
 {det}
 
 [중복 통합 결과]
-누적 제보 {count}건, 대규모 신호={dd.get('mass_signal')}
+누적 제보 {count}건 (독립 고객 {dd.get('customer_count', 1)}명), 대규모 신호={dd.get('mass_signal')}
 
 [규칙 기반 1차 판별]
 심각도={sev}, 알림 대상={notify}

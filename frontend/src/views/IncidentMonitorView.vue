@@ -171,7 +171,7 @@ const ragLabel = computed(() => {
               <td class="wrap"><strong>{{ i.title }}</strong></td>
               <td class="nowrap">{{ i.error_type }} · {{ i.channel || '-' }}</td>
               <td class="nowrap">
-                {{ i.report_count }}건
+                {{ i.report_count }}건<span class="muted small"> · 고객 {{ i.customer_count || 1 }}명</span>
                 <span v-if="i.mass_signal" class="badge badge-red">동일유형 다발</span>
               </td>
               <td class="nowrap">{{ i.owner_name || '-' }}<span v-if="i.dept" class="muted small"> · {{ i.dept }}</span></td>

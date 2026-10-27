@@ -101,7 +101,8 @@ class Criteria:
 # 코드 기본값 (DB 기준이 없을 때)
 # ---------------------------------------------------------------------
 _CODE_DEFS = {
-    "P1": ("다수 고객에게 영향을 주거나 금전 피해가 발생하는 장애", 1),
+    "P1": ("다수 고객의 핵심 거래가 계속 막히거나 금전 피해가 발생하는 장애, 또는 지급 기한이 임박했는데 대체수단 없이"
+           " 거래가 계속 막혀 중대한 피해가 예상되는 장애", 1),
     "P2": ("로그인·인증·이체 등 핵심 기능을 사용할 수 없는 장애", None),      # 알림은 P1만
     "P3": ("일부 기능 지연이나 화면 오류로 불편하지만 우회가 가능한 장애", None),
     "P4": ("영향이 미미하거나 고객 실수·정상 동작으로 보이는 건", None),
@@ -122,9 +123,19 @@ def _code_base_rules() -> list[dict]:
 
 def _code_adjust_rules() -> list[dict]:
     return [
+        {"rule_code": "PERSIST_P2", "rule_name": "지속 차단", "rule_type": "KEYWORD",
+         "keywords": rules.PERSIST_SIGNALS, "threshold": None, "action_type": "RAISE_TO", "raise_steps": None,
+         "target_grade": "P2", "condition_grade": None, "target_error_type": None, "apply_order": 5},
         {"rule_code": "ESC_IMPACT", "rule_name": "영향범위 확대 신호", "rule_type": "KEYWORD",
          "keywords": rules.ESCALATION_SIGNALS, "threshold": None, "action_type": "RAISE", "raise_steps": 1,
          "target_grade": None, "condition_grade": None, "target_error_type": None, "apply_order": 10},
+        {"rule_code": "URGENT_P1", "rule_name": "기한 임박·대체수단 없음·지속 차단", "rule_type": "KEYWORD",
+         "keywords": rules.URGENT_DEADLINE_SIGNALS, "threshold": None, "action_type": "RAISE_TO",
+         "raise_steps": None, "target_grade": "P1", "condition_grade": None, "target_error_type": None,
+         "apply_order": 15},
+        {"rule_code": "RECOVERED_P3", "rule_name": "일시 실패 후 정상 진행", "rule_type": "KEYWORD",
+         "keywords": rules.RECOVERED_SIGNALS, "threshold": None, "action_type": "LOWER_TO", "raise_steps": None,
+         "target_grade": "P3", "condition_grade": None, "target_error_type": None, "apply_order": 25},
         {"rule_code": "RPT_MULTI", "rule_name": "복수 제보 시 P4 상향", "rule_type": "REPORT_COUNT",
          "keywords": None, "threshold": 2, "action_type": "SET_GRADE", "raise_steps": None,
          "target_grade": "P3", "condition_grade": "P4", "target_error_type": None, "apply_order": 20},

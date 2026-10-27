@@ -62,6 +62,15 @@ export async function fetchIncidents({ status, openOnly, box, period, dateFrom, 
   return data
 }
 
+/* ---------- 개선의견 API ---------- */
+export async function fetchImprovements({ dateFrom, dateTo, limit = 100 } = {}) {
+  const params = { limit }
+  if (dateFrom) params.date_from = dateFrom
+  if (dateTo) params.date_to = dateTo
+  const { data } = await http.get('/improvements', { params })
+  return data
+}
+
 export async function fetchIncident(incidentId) {
   const { data } = await http.get(`/incidents/${incidentId}`)
   return data
