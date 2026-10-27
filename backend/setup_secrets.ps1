@@ -1,18 +1,18 @@
-﻿# 최초 1회: .env 의 OLLAMA_API_KEY 를 Secret Manager(ollama-api-key)에 등록하고
+﻿# 최초 1회: .env 의 ANTHROPIC_API_KEY 를 Secret Manager(anthropic-api-key)에 등록하고
 #           Cloud Run 서비스 계정이 읽을 수 있게 권한을 줍니다. 키를 바꿨을 때 다시 실행하면 새 버전이 추가됩니다.
 $ErrorActionPreference = "Stop"
 
 $API        = $PSScriptRoot
 $PROJECT_ID = "vocai-511109"
 $SA         = "api-runner@${PROJECT_ID}.iam.gserviceaccount.com"
-$SECRET     = "ollama-api-key"
+$SECRET     = "anthropic-api-key"
 
 # .env 에서 키 읽기
-$line = Get-Content "$API\.env" | Where-Object { $_ -match '^\s*OLLAMA_API_KEY\s*=' } | Select-Object -First 1
-if (-not $line) { throw ".env 에 OLLAMA_API_KEY 가 없습니다." }
+$line = Get-Content "$API\.env" | Where-Object { $_ -match '^\s*ANTHROPIC_API_KEY\s*=' } | Select-Object -First 1
+if (-not $line) { throw ".env 에 ANTHROPIC_API_KEY 가 없습니다." }
 $key = ($line -split '=', 2)[1]
 $key = ($key -replace '\s+#.*$', '').Trim().Trim('"').Trim("'")
-if (-not $key) { throw "OLLAMA_API_KEY 값이 비어 있습니다." }
+if (-not $key) { throw "ANTHROPIC_API_KEY 값이 비어 있습니다." }
 
 # 줄바꿈 없이 임시 파일에 저장 (키 끝에 줄바꿈이 붙으면 인증 실패)
 $tmp = [System.IO.Path]::GetTempFileName()

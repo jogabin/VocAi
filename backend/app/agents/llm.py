@@ -96,6 +96,7 @@ def _ask_anthropic(system: str, user: str, max_tokens: int) -> str:
             "max_tokens": max_tokens,
             "system": system + JSON_RULE,
             "messages": [{"role": "user", "content": user}],
+            "output_config": {"effort": settings.llm_effort},
         },
         timeout=settings.llm_timeout_sec,
     )

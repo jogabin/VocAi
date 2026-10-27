@@ -10,7 +10,7 @@ deploy.ps1   Vue 빌드 → backend/static 복사 → Cloud Run 배포
 - **에이전트 오케스트레이션**: LangGraph `StateGraph` (`app/agents/graph.py`)
   - 노드: 장애감지 → 중복제보 통합 → 심각도 판별 → (분기) 담당자식별·알림 / 장애이력 등록
   - 조건 분기: 장애감지 후 `장애 아님 → END`, 심각도 판별 후 `알림 대상 → 알림`, `관찰·오탐 → 이력 등록`
-- **LLM**: Ollama Cloud (`gemma4:31b`) - 장애감지, 심각도 판별 노드에서 사용. 실패 시 규칙 기반으로 자동 대체
+- **LLM**: Claude API (`claude-sonnet-5-5`) - 장애감지, 심각도 판별 노드에서 사용. 실패 시 규칙 기반으로 자동 대체
 - **RAG**: 로컬 Ollama `bge-m3` 임베딩 + PostgreSQL **pgvector** 코사인 검색 (pgvector 미설치 시 `real[]` + 파이썬 계산으로 자동 대체, 임베딩 서버 미연결 시 문자열 유사도로 대체)
 
 ## 1. 추가된 파일
@@ -32,7 +32,7 @@ deploy.ps1   Vue 빌드 → backend/static 복사 → Cloud Run 배포
 | `app/agents/pipeline.py` | 그래프 실행 + 실행 결과 기록 |
 | `app/services/rag.py` | 임베딩 생성(Ollama) + pgvector 유사사례 검색 + 지식베이스 갱신 |
 | `app/agents/rules.py` | 키워드/심각도/알림 규칙 (여기서 규칙 조정) |
-| `app/agents/llm.py` | Ollama `/api/chat` 호출 (JSON 출력) |
+| `app/agents/llm.py` | Claude Messages API 호출 (JSON 출력, Ollama도 선택 가능) |
 
 수정: `main.py` (라우터 등록, CORS에 POST/PATCH 허용), `app/database.py` (에이전트 설정 항목 추가)
 
@@ -94,11 +94,11 @@ npm run dev                          # http://localhost:5173
 ## 3-1. .env 항목
 
 ```
-OLLAMA_API_KEY=...                       # (입력됨) Ollama Cloud 채팅용
-OLLAMA_MODEL=gemma4:31b                  # 기본값. 다른 클라우드 모델로 변경 가능
+ANTHROPIC_API_KEY=...                    # Claude API 키 (console.anthropic.com 에서 발급)
 # 이하 선택 (기본값 있음)
-LLM_PROVIDER=ollama                      # ollama / anthropic / none(규칙 기반)
-OLLAMA_BASE_URL=https://ollama.com       # 로컬 Ollama로 채팅하려면 http://localhost:11434
+LLM_PROVIDER=anthropic                   # anthropic / ollama / none(규칙 기반)
+LLM_MODEL=claude-sonnet-5-5              # 비용을 줄이려면 claude-haiku-5-5
+LLM_EFFORT=low                           # low / medium / high (생각 깊이)
 OLLAMA_EMBED_BASE_URL=http://localhost:11434
 OLLAMA_EMBED_MODEL=bge-m3
 RAG_MIN_SIMILARITY=0.45                  # 유사 사례로 표시할 최소 코사인 유사도
@@ -111,7 +111,7 @@ MASS_SIGNAL_THRESHOLD=3
 AGENT_STEP_DELAY_SEC=1.0                 # 시연용 노드 간 지연(초)
 ```
 
-모니터 화면 상단 배지에서 `LLM Ollama · gemma4:31b`, `RAG pgvector · bge-m3` 상태를 확인할 수 있습니다.
+모니터 화면 상단 배지에서 `LLM Claude · claude-sonnet-5-5`, `RAG pgvector · bge-m3` 상태를 확인할 수 있습니다.
 RAG 유사도 기준값은 bge-m3 기준 추정값이므로 시연 데이터로 결과를 보고 조정하세요.
 
 ## 4. 시연 시나리오 (시드 데이터 기준)

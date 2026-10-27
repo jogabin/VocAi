@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     # ---- LLM 설정 ----
-    # llm_provider: ollama / anthropic / none(규칙 기반)
-    llm_provider: str = "ollama"
+    # llm_provider: anthropic / ollama / none(규칙 기반)
+    llm_provider: str = "anthropic"
     # Ollama Cloud(채팅). 로컬 Ollama로 채팅하려면 OLLAMA_BASE_URL=http://localhost:11434, 키 비움
     ollama_base_url: str = "https://ollama.com"
     ollama_api_key: str = ""
@@ -25,9 +25,11 @@ class Settings(BaseSettings):
     # RAG 유사도 기준 (코사인). 표시 최소값 / 오탐 사례 일치 판단값
     rag_min_similarity: float = 0.45
     rag_fp_similarity: float = 0.60
-    # (선택) Claude 사용 시: LLM_PROVIDER=anthropic
+    # Claude (LLM_PROVIDER=anthropic)
     anthropic_api_key: str = ""
     llm_model: str = "claude-sonnet-5-5"
+    # 생각(thinking) 깊이: low / medium / high. 짧은 JSON 분류라 low (높이면 느려지고 토큰 소모 증가)
+    llm_effort: str = "low"
     llm_timeout_sec: float = 60.0
     # 배포 환경 DB 초기화: 마지막으로 적용한 값과 다른 값을 넣고 재배포하면 시작 시 한 번만 VOC 테이블을 다시 만듦
     db_reset_token: str = ""

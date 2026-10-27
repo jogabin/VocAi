@@ -8,9 +8,9 @@ $INSTANCE   = "vocai"
 $SERVICE    = "myapp"
 $SA         = "api-runner@${PROJECT_ID}.iam.gserviceaccount.com"
 
-# LLM 설정 (Cloud Run 환경변수). API 키는 Secret Manager(ollama-api-key)에서 주입
-$ENV_VARS = "LLM_PROVIDER=ollama,OLLAMA_MODEL=gemma4:31b,AGENT_STEP_DELAY_SEC=1.0"
-$SECRETS  = "DATABASE_URL=database-url:latest,OLLAMA_API_KEY=ollama-api-key:latest"
+# LLM 설정 (Cloud Run 환경변수). API 키는 Secret Manager(anthropic-api-key)에서 주입
+$ENV_VARS = "LLM_PROVIDER=anthropic,LLM_MODEL=claude-sonnet-5-5,AGENT_STEP_DELAY_SEC=1.0"
+$SECRETS  = "DATABASE_URL=database-url:latest,ANTHROPIC_API_KEY=anthropic-api-key:latest"
 
 # 0) 서비스 주소 → APP_BASE_URL (메신저 알림의 '장애 상세' 링크 주소)
 #    이미 배포된 서비스의 주소를 읽어 넣습니다. 최초 배포라 주소가 없으면 경고만 하고 진행 → 배포 후 한 번 더 실행

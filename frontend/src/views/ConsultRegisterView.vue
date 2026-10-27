@@ -289,7 +289,7 @@ onBeforeUnmount(() => clearTimeout(pollTimer))
           <div v-if="run" class="run-detail">
             <AgentTimeline :run="run" />
             <div v-if="run.status !== 'RUNNING'" class="run-foot">
-              <span class="muted">{{ run.llm_used ? 'LLM(Ollama) 분석 사용' : '규칙 기반 분석 (LLM 미사용/실패)' }}</span>
+              <span class="muted">{{ run.llm_used ? 'LLM(Claude) 분석 사용' : '규칙 기반 분석 (LLM 미사용/실패)' }}</span>
               <button v-if="run.incident_id" class="btn btn-sm" @click="navigate('/incident', { id: run.incident_id })">
                 장애 #{{ run.incident_id }} 상세 보기 →
               </button>
