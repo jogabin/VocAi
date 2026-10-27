@@ -228,7 +228,7 @@ const ragLabel = computed(() => {
 .box-desc { font-size: 11.5px; color: var(--text-3); }
 .box-registered { --c: var(--accent); --soft: var(--accent-soft); }
 .box-urgent { --c: var(--p1); --soft: var(--p1-soft); }
-.box-messaged { --c: #7c4dff; --soft: #efe9ff; }
+.box-messaged { --c: var(--navy); --soft: var(--navy-soft); }
 .box-same_type { --c: var(--p2); --soft: var(--p2-soft); }
 .box-resolved { --c: var(--ok); --soft: var(--ok-soft); }
 .box.blink { animation: urgent-blink 1s ease-in-out infinite; border-color: var(--p1); }

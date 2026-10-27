@@ -27,5 +27,5 @@ defineProps({ utterances: { type: Array, default: () => [] }, customerName: Stri
 .meta .added { font-size: 10.5px; font-weight: 700; color: var(--warn); background: var(--warn-soft); border-radius: 4px; padding: 0 5px; }
 .bubble { padding: 9px 12px; border-radius: 12px; font-size: 13.5px; line-height: 1.55; }
 .agent .bubble { background: var(--surface-2); border: 1px solid var(--line); border-top-left-radius: 4px; }
-.customer .bubble { background: var(--accent-soft); color: #1b3a9c; border-top-right-radius: 4px; }
+.customer .bubble { background: var(--accent-soft); color: var(--navy); border-top-right-radius: 4px; }
 </style>

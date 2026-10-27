@@ -90,22 +90,22 @@ onMounted(auth.restore)
 
 <style>
 .boot { min-height: 100vh; display: grid; place-items: center; color: var(--text-3); font-size: 13px; }
-.topbar { background: #111827; color: #fff; position: sticky; top: 0; z-index: 20; }
-.topbar-inner { max-width: 1440px; margin: 0 auto; padding: 0 24px; height: 56px; display: flex; align-items: center; gap: 28px; }
+.topbar { background: #fff; color: var(--text); position: sticky; top: 0; z-index: 20; border-bottom: 1px solid var(--line); box-shadow: 0 2px 6px rgba(0, 0, 0, .04); }
+.topbar-inner { max-width: 1440px; margin: 0 auto; padding: 0 24px; height: 68px; display: flex; align-items: center; gap: 36px; }
 .brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.brand .logo { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, #3b6cff, #7c4dff); display: grid; place-items: center; font-weight: 800; }
-.brand strong { display: block; font-size: 14px; letter-spacing: -0.01em; }
-.brand small { display: block; font-size: 11px; color: #9ca3af; }
-.topbar nav { display: flex; gap: 2px; height: 100%; overflow-x: auto; scrollbar-width: none; }
-.topbar nav a { color: #cbd5e1; display: flex; align-items: center; padding: 0 12px; font-weight: 600; font-size: 13.5px; border-bottom: 2px solid transparent; text-decoration: none; white-space: nowrap; }
-.topbar nav a:hover { color: #fff; background: rgba(255, 255, 255, .04); }
-.topbar nav a.on { color: #fff; border-bottom-color: #5b8cff; }
+.brand .logo { width: 32px; height: 32px; border-radius: 4px; background: linear-gradient(135deg, var(--navy) 0 55%, var(--accent) 55% 100%); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 16px; }
+.brand strong { display: block; font-size: 16px; color: var(--navy); letter-spacing: -0.03em; }
+.brand small { display: block; font-size: 11px; color: var(--text-3); }
+.topbar nav { display: flex; gap: 4px; height: 100%; overflow-x: auto; scrollbar-width: none; }
+.topbar nav a { color: #333; display: flex; align-items: center; padding: 0 14px; font-weight: 700; font-size: 15px; letter-spacing: -0.02em; border-bottom: 3px solid transparent; border-top: 3px solid transparent; text-decoration: none; white-space: nowrap; }
+.topbar nav a:hover { color: var(--accent); }
+.topbar nav a.on { color: var(--accent); border-bottom-color: var(--accent); }
 .topbar .user { margin-left: auto; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-.topbar .who { text-align: right; line-height: 1.25; }
-.topbar .who strong { display: block; font-size: 13px; }
-.topbar .who small { display: block; font-size: 11px; color: #9ca3af; }
-.topbar .logout { font: inherit; font-size: 12px; font-weight: 600; color: #cbd5e1; background: transparent; border: 1px solid #374151; border-radius: 7px; padding: 5px 10px; cursor: pointer; }
-.topbar .logout:hover { color: #fff; border-color: #6b7280; }
-@media (max-width: 1100px) { .brand small, .topbar .who small { display: none; } .topbar-inner { gap: 14px; } }
-@media (max-width: 760px) { .brand div { display: none; } .topbar .who { display: none; } .topbar-inner { padding: 0 12px; gap: 8px; } .topbar nav a { padding: 0 8px; font-size: 12.5px; } }
+.topbar .who { text-align: right; line-height: 1.3; }
+.topbar .who strong { display: block; font-size: 13px; color: #222; }
+.topbar .who small { display: block; font-size: 11px; color: var(--text-3); }
+.topbar .logout { font: inherit; font-size: 12px; font-weight: 600; color: var(--text-2); background: #fff; border: 1px solid var(--line-strong); border-radius: 3px; padding: 4px 9px; cursor: pointer; }
+.topbar .logout:hover { color: var(--accent); border-color: var(--accent); }
+@media (max-width: 1100px) { .brand small, .topbar .who small { display: none; } .topbar-inner { gap: 16px; } .topbar nav a { padding: 0 10px; font-size: 14px; } }
+@media (max-width: 760px) { .brand div { display: none; } .topbar .who { display: none; } .topbar-inner { padding: 0 12px; gap: 8px; height: 56px; } .topbar nav a { padding: 0 8px; font-size: 13px; } }
 </style>

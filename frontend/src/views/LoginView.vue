@@ -66,17 +66,17 @@ onMounted(() => idInput.value?.focus())
 </template>
 
 <style scoped>
-.login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: radial-gradient(circle at 20% 10%, #e8eefd 0, transparent 45%), var(--bg); }
-.login-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 10px 30px rgba(16, 24, 40, .08); padding: 28px; }
-.login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
-.login-brand .logo { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, #3b6cff, #7c4dff); color: #fff; display: grid; place-items: center; font-weight: 800; }
-.login-brand strong { display: block; font-size: 14px; }
+.login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: linear-gradient(180deg, #e3f3fc 0, #f2f4f6 55%); }
+.login-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0, 0, 0, .06); padding: 32px 30px; }
+.login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+.login-brand .logo { width: 36px; height: 36px; border-radius: 4px; background: linear-gradient(135deg, var(--navy) 0 55%, var(--accent) 55% 100%); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 17px; }
+.login-brand strong { display: block; font-size: 16px; color: var(--navy); letter-spacing: -0.03em; }
 .login-brand small { display: block; font-size: 11.5px; color: var(--text-3); }
-h2 { font-size: 18px; margin-bottom: 14px; }
+h2 { font-size: 22px; color: #222; letter-spacing: -0.03em; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 2px solid var(--text); }
 .field input { width: 100%; }
 .full { width: 100%; margin-top: 4px; }
 .err { margin: 0 0 10px; }
-.notice { background: var(--accent-soft); color: var(--accent); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; margin: 0 0 12px; }
+.notice { background: var(--accent-soft); color: var(--accent-strong); border-radius: 4px; padding: 8px 10px; font-size: 12.5px; margin: 0 0 12px; }
 .demo { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--line-strong); font-size: 12px; color: var(--text-3); line-height: 1.8; }
 .demo span { display: block; font-weight: 600; color: var(--text-2); }
 .demo code { font-family: var(--mono); font-size: 11.5px; color: var(--text-2); background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
