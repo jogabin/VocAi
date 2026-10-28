@@ -136,6 +136,7 @@ function openEdit(r) {
       judge_examples: r.judge_examples || '',
       notify_on: r.notify_min_reports != null,
       notify_min_reports: r.notify_min_reports ?? 1,
+      observe_yn: !!r.observe_yn,
       roles: (r.recipient_roles || '').split(',').map((x) => x.trim()).filter(Boolean),
       target_ack_min: r.target_ack_min ?? null,
       target_resolve_min: r.target_resolve_min ?? null,
@@ -181,7 +182,7 @@ function openNew() {
     const n = (data.value?.grades || []).length + 1
     fill({
       grade_code: `P${n}`, grade_name: '', grade_order: n, definition: '', judge_examples: '',
-      notify_on: false, notify_min_reports: 1, roles: ['담당'],
+      notify_on: false, notify_min_reports: 1, observe_yn: false, roles: ['담당'],
       target_ack_min: null, target_resolve_min: null, message_prefix: '[장애알림]', use_yn: true, valid_to: '',
     })
   } else if (tab.value === 'base') {
@@ -216,6 +217,7 @@ function buildPayload() {
       definition: f.definition.trim(),
       judge_examples: nul(f.judge_examples.trim()),
       notify_min_reports: f.notify_on ? num(f.notify_min_reports) : null,
+      observe_yn: !!f.observe_yn,
       recipient_roles: ROLES.filter((r) => f.roles.includes(r)).join(','),
       target_ack_min: num(f.target_ack_min),
       target_resolve_min: num(f.target_resolve_min),
@@ -414,13 +416,17 @@ onMounted(load)
             <!-- 등급 정의 -->
             <table v-if="tab === 'grade'" class="tbl">
               <thead>
-                <tr><th>등급</th><th>정의</th><th>알림 기준</th><th>수신 역할</th><th>목표 인지/조치</th><th>사용</th><th>최종 수정</th></tr>
+                <tr><th>등급</th><th>정의</th><th>알림 기준</th><th>미대상 처리</th><th>수신 역할</th><th>목표 인지/조치</th><th>사용</th><th>최종 수정</th></tr>
               </thead>
               <tbody>
                 <tr v-for="g in rows" :key="g.grade_code" :class="{ selected: editing.key === g.grade_code, off: g.use_yn === false }" @click="openEdit(g)">
                   <td class="nowrap"><SeverityBadge :value="g.grade_code" short /> <strong>{{ g.grade_name }}</strong></td>
                   <td class="wrap">{{ g.definition }}</td>
                   <td class="nowrap" :class="{ muted: g.notify_min_reports == null }">{{ notifyText(g) }}</td>
+                  <td class="nowrap">
+                    <span v-if="g.notify_min_reports === 1" class="muted">- (항상 알림)</span>
+                    <span v-else class="badge" :class="g.observe_yn ? 'badge-blue' : 'badge-gray'">{{ g.observe_yn ? '관찰' : '미대상' }}</span>
+                  </td>
                   <td class="nowrap">
                     <span v-if="!g.recipient_roles" class="muted">-</span>
                     <span v-for="r in (g.recipient_roles || '').split(',').filter(Boolean)" :key="r" class="chip">{{ r }}</span>
@@ -522,7 +528,14 @@ onMounted(load)
                     <input v-model.number="form.notify_min_reports" class="w-num" type="number" min="1">
                     <span class="muted">건 이상이면 발송</span>
                   </template>
-                  <span v-else class="muted">· 관찰만 하고 메신저는 보내지 않음</span>
+                  <span v-else class="muted">· 메신저는 보내지 않음</span>
+                </div>
+              </div>
+              <div class="field">
+                <label>관찰 여부</label>
+                <div class="inline">
+                  <label class="chk"><input v-model="form.observe_yn" type="checkbox"> 관찰</label>
+                  <span class="muted">· 알림 미대상일 때 {{ form.observe_yn ? "'관찰'로 등록 → 센터관리자가 확인 후 수동 알림 또는 종결" : "'미대상'으로 자동 종결 (추가 제보가 쌓이면 재판정)" }}</span>
                 </div>
               </div>
               <div class="field">

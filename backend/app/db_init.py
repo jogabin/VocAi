@@ -31,6 +31,8 @@ SQL_FILES = [
     "09_auth_roles.sql",           # 로그인 권한 4종 (상담사/센터관리자/IT담당자/시스템관리자)
     "10_impact_improvement.sql",   # 영향 기반 판별 보강 · 독립 고객 수 · 개선의견
     "11_demo_scripts.sql",         # 등급별 시연 STT 원문 16건 + 누적 제보용 사전 통화
+    "12_incident_no.sql",          # 장애번호 ERR-0001 형식
+    "13_observe_manual_notify.sql",  # 관찰 여부 · 수동 알림 · 미대상 상태
 ]
 
 EMBED_TABLE = """
@@ -79,12 +81,22 @@ def init_schema(reset: bool = False) -> str:
             log.info("SQL 실행: %s", name)
             cur.execute((ROOT / "sql" / name).read_text(encoding="utf-8"))
         raw.commit()
-        return create_embedding_table(raw)
+        mode = create_embedding_table(raw)
     except Exception:
         raw.rollback()
         raise
     finally:
         raw.close()
+    load_history()
+    return mode
+
+
+def load_history() -> None:
+    """시연용 과거 상담 데이터 (2026-10-15 ~ 10-28, 하루 20건). 이미 있으면 건너뜀."""
+    from app import history_seed
+    from app.database import SessionLocal
+    with SessionLocal() as db:
+        history_seed.load_if_needed(db)
 
 
 def reset_users() -> None:

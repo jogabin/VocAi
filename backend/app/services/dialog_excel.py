@@ -95,15 +95,29 @@ def parse(data: bytes) -> dict:
     return {"lines": lines, "sheet": ws.title}
 
 
+TEMPLATE_ROWS = [("상담사", "안녕하세요, OO은행 고객센터 상담사입니다. 무엇을 도와드릴까요?"),
+                 ("고객", "모바일 앱에서 로그인이 계속 실패해요."),
+                 ("상담사", "불편을 드려 죄송합니다. 어떤 오류 메시지가 표시되나요?")]
+SPEAKER_KO = {"CUSTOMER": "고객", "AGENT": "상담사"}
+
+
 def template() -> bytes:
     """대화내용 입력 양식 (.xlsx): 머리글 + 예시 3행 + 화자 선택 목록."""
+    return build(TEMPLATE_ROWS)
+
+
+def export(utterances: list[dict]) -> bytes:
+    """STT 원문 대화 → 업로드 양식과 같은 형식의 엑셀 (상담데이터 등록 화면에서 그대로 불러올 수 있음)."""
+    return build([(SPEAKER_KO.get(u["speaker"], u["speaker"]), u["text"]) for u in utterances])
+
+
+def build(rows: list[tuple[str, str]]) -> bytes:
+    """머리글(화자 | 대화내용) + 대화 행 + 화자 선택 목록."""
     wb = Workbook()
     ws = wb.active
     ws.title = "대화내용"
     ws.append(["화자", "대화내용"])
-    for row in [("상담사", "안녕하세요, OO은행 고객센터 상담사입니다. 무엇을 도와드릴까요?"),
-                ("고객", "모바일 앱에서 로그인이 계속 실패해요."),
-                ("상담사", "불편을 드려 죄송합니다. 어떤 오류 메시지가 표시되나요?")]:
+    for row in rows:
         ws.append(row)
     for c in ws[1]:
         c.font = Font(bold=True)

@@ -18,7 +18,7 @@ from typing import Literal
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.agents import graph, llm, pipeline, summary
+from app.agents import graph, llm, notify, pipeline, summary
 from app.database import DB, SessionLocal
 from app.services import auth, criteria, messenger, rag, repo
 
@@ -26,7 +26,7 @@ router = APIRouter(tags=["voc"])
 
 ErrorType = Literal["로그인", "인증", "조회", "이체", "UI오류", "기타"]
 Severity = Literal["P1", "P2", "P3", "P4"]
-IncidentStatus = Literal["관찰", "접수", "확인중", "해결", "오탐"]
+IncidentStatus = Literal["관찰", "접수", "확인중", "해결", "오탐", "미대상"]
 
 
 # =====================================================================
@@ -163,7 +163,7 @@ class IncidentPatch(BaseModel):
     resolution: str | None = None
 
 
-Box = Literal["registered", "urgent", "messaged", "same_type", "resolved"]
+Box = Literal["registered", "urgent", "observing", "messaged", "same_type", "resolved"]
 Period = Literal["today", "7d", "all"]
 
 
@@ -207,7 +207,7 @@ def create_incident(body: IncidentIn, db: DB):
 # 장애 처리 등록 (장애 상세정보 화면: IT담당자 권한만)
 # =====================================================================
 class ActionIn(BaseModel):
-    process_status: Literal["대기중", "진행중", "미대상", "처리완료"]
+    process_status: Literal["대기중", "진행중", "오탐", "처리완료"]
     content: str | None = Field(None, max_length=4000, description="처리 내용")
 
 
@@ -219,13 +219,12 @@ def add_incident_action(incident_id: int, body: ActionIn, db: DB, background: Ba
     inc = repo.get_incident(db, incident_id, detail=False)
     if not inc:
         raise HTTPException(404, "장애 정보를 찾을 수 없습니다.")
+    if inc["status"] in ("관찰", "미대상"):
+        raise HTTPException(400, "관찰·미대상 장애는 센터관리자가 IT담당자에게 알림을 보낸 뒤 처리할 수 있습니다.")
     content = (body.content or "").strip() or None
-    if body.process_status in ("처리완료", "미대상") and not content:
+    if body.process_status in ("처리완료", "오탐") and not content:
         raise HTTPException(400, f"'{body.process_status}' 등록 시 처리 내용을 입력하세요. (유사 장애 분석에 사용)")
-    if body.process_status == "대기중":
-        new_status = "접수" if inc.get("notified_severity") else "관찰"
-    else:
-        new_status = repo.PROCESS_TO_STATUS[body.process_status]
+    new_status = repo.PROCESS_TO_STATUS[body.process_status]
     fields: dict = {"status": new_status}
     if content:
         fields["resolution"] = content
@@ -243,6 +242,109 @@ def add_incident_action(incident_id: int, body: ActionIn, db: DB, background: Ba
     db.commit()
     if new_status in ("해결", "오탐"):
         background.add_task(_embed_incident, incident_id)       # 처리 결과를 유사사례 검색에 반영
+    return repo.get_incident(db, incident_id)
+
+
+# =====================================================================
+# 관찰 장애: 센터관리자가 IT담당자를 지정해 수동 알림 전송 / 알림 없이 종결
+# =====================================================================
+def _sender(user: dict) -> str:
+    return f"{user.get('auth_role') or ''} {user.get('emp_name') or user.get('user_name') or user.get('login_id')}".strip()
+
+
+def _manual_target(db, incident_id: int) -> dict:
+    inc = repo.get_incident(db, incident_id)
+    if not inc:
+        raise HTTPException(404, "장애 정보를 찾을 수 없습니다.")
+    if inc["status"] not in ("관찰", "미대상"):
+        raise HTTPException(400, f"관찰·미대상 장애만 수동 알림·종결할 수 있습니다. (현재 {inc['process_status']})")
+    return inc
+
+
+@router.get("/incidents/{incident_id}/manual-notify", summary="관찰 장애 수동 알림 미리보기 (추천 수신자 · 자동 작성 메시지)")
+def manual_notify_preview(incident_id: int, db: DB, user: auth.ManagerUser, severity: str | None = None):
+    inc = _manual_target(db, incident_id)
+    cr = criteria.load(db)
+    sev = severity if severity in cr.codes() else inc["severity"]
+    draft = notify.manual_draft(db, inc, sev, _sender(user))
+    staff = repo.list_it_staff(db, inc["error_type"])
+    pick = lambda e, t: {"emp_id": e["emp_id"], "recipient_type": t}  # noqa: E731
+    return {"severity": sev, "grades": [{"code": g["grade_code"], "label": g["grade_name"]} for g in cr.grades],
+            "recommended": [pick(e, "1차") for e in draft["primary"]] + [pick(e, "2차") for e in draft["secondary"]],
+            "staff": staff, "title": draft["title"], "body": draft["body"]}
+
+
+class ManualRecipient(BaseModel):
+    emp_id: int
+    recipient_type: Literal["1차", "2차"] = "1차"
+
+
+class ManualNotifyIn(BaseModel):
+    severity: str
+    recipients: list[ManualRecipient] = Field(min_length=1)
+    title: str = Field(min_length=1, max_length=200)
+    body: str = Field(min_length=1)
+    memo: str | None = Field(None, max_length=1000, description="처리 이력에 남길 메모")
+
+
+@router.post("/incidents/{incident_id}/manual-notify", summary="관찰 장애 수동 알림 전송 (처리상태 → 대기중)")
+def manual_notify(incident_id: int, body: ManualNotifyIn, db: DB, user: auth.ManagerUser):
+    inc = _manual_target(db, incident_id)
+    if body.severity not in criteria.load(db).codes():
+        raise HTTPException(400, f"등급 코드가 올바르지 않습니다: {body.severity}")
+    emps = {e["emp_id"]: e for e in repo.employees_by_ids(db, [r.emp_id for r in body.recipients])}
+    link = notify.detail_url(incident_id)
+    targets = []
+    for r in body.recipients:
+        e = emps.get(r.emp_id)
+        if not e or not e.get("messenger_id"):
+            raise HTTPException(400, f"메신저 ID가 있는 직원이 아닙니다: emp_id={r.emp_id}")
+        targets.append({"receiver": e["messenger_id"], "receiver_name": e["emp_name"], "emp_id": e["emp_id"],
+                        "recipient_type": r.recipient_type, "link_url": link})
+    logs = messenger.send_message(db, targets, body.title, body.body, incident_id=incident_id)
+    first = next((t for t in targets if t["recipient_type"] == "1차"), targets[0])
+    fields = {"status": "접수", "severity": body.severity, "notified_severity": body.severity, "resolved_at": None}
+    if not inc.get("owner_emp_id"):
+        fields["owner_emp_id"] = first["emp_id"]
+    repo.update_incident(db, incident_id, fields)
+    who = lambda t: ", ".join(x["receiver_name"] for x in targets if x["recipient_type"] == t) or "-"  # noqa: E731
+    grade = (f" · 등급 {inc['severity']}→{body.severity}" if body.severity != inc["severity"]
+             else f" · 등급 {body.severity}")
+    content = f"수동 알림 전송 ({_sender(user)}){grade} · 1차 {who('1차')} / 2차 {who('2차')}"
+    if body.memo and body.memo.strip():
+        content += "\n" + body.memo.strip()
+    repo.add_action(db, {"incident_id": incident_id, "process_status": "대기중", "status_before": inc["status"],
+                         "status_after": "접수", "content": content, "emp_id": user.get("emp_id"),
+                         "actor_login": user.get("login_id") or "-",
+                         "actor_name": user.get("emp_name") or user.get("user_name")})
+    db.commit()
+    failed = [m for m in logs if m["status"] != "SENT"]
+    out = repo.get_incident(db, incident_id)
+    out["send_result"] = {"sent": len(logs) - len(failed), "failed": len(failed),
+                          "transport": logs[0]["transport"] if logs else None}
+    return out
+
+
+class CloseIn(BaseModel):
+    false_positive: bool = Field(False, description="true = 오탐(고객 실수·정상 동작), false = 미대상")
+    content: str = Field(min_length=2, max_length=4000, description="종결 사유")
+
+
+@router.post("/incidents/{incident_id}/close", summary="관찰 장애 알림 없이 종결 (미대상 또는 오탐)")
+def close_incident(incident_id: int, body: CloseIn, db: DB, background: BackgroundTasks, user: auth.ManagerUser):
+    inc = _manual_target(db, incident_id)
+    new_status = "오탐" if body.false_positive else "미대상"
+    reason = body.content.strip()
+    repo.update_incident(db, incident_id, {"status": new_status, "resolution": reason,
+                                           "resolved_at": datetime.now(timezone.utc),
+                                           "resolved_by_emp_id": user.get("emp_id")})
+    repo.add_action(db, {"incident_id": incident_id, "process_status": new_status, "status_before": inc["status"],
+                         "status_after": new_status, "content": f"알림 없이 종결 ({_sender(user)})\n{reason}",
+                         "emp_id": user.get("emp_id"), "actor_login": user.get("login_id") or "-",
+                         "actor_name": user.get("emp_name") or user.get("user_name")})
+    db.commit()
+    if new_status == "오탐":
+        background.add_task(_embed_incident, incident_id)        # 오탐 사례는 2차 대조에 사용
     return repo.get_incident(db, incident_id)
 
 
@@ -388,6 +490,7 @@ class GradeIn(Audit):
     definition: str = Field(min_length=2)
     judge_examples: str | None = None
     notify_min_reports: int | None = Field(None, ge=1, description="NULL = 알림 없음")
+    observe_yn: bool = Field(False, description="알림 미대상일 때 관찰로 등록 (FALSE = 미대상 자동 종결)")
     recipient_roles: str = Field("", description="'담당,부담당,팀장'")
     target_ack_min: int | None = Field(None, ge=0)
     target_resolve_min: int | None = Field(None, ge=0)
@@ -401,6 +504,7 @@ class GradePatch(Audit):
     definition: str | None = None
     judge_examples: str | None = None
     notify_min_reports: int | None = Field(None, ge=1)
+    observe_yn: bool | None = None
     recipient_roles: str | None = None
     target_ack_min: int | None = Field(None, ge=0)
     target_resolve_min: int | None = Field(None, ge=0)

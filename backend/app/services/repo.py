@@ -14,9 +14,12 @@ OPEN_STATUSES = ("관찰", "접수", "확인중")
 CLOSED_STATUSES = ("해결", "오탐")
 
 # 화면 처리상태 ↔ 내부 상태 (sql/07_incident_process.sql 참고)
-PROCESS_STATUS_SQL = """CASE i.status WHEN '확인중' THEN '진행중' WHEN '해결' THEN '처리완료'
-                                  WHEN '오탐' THEN '미대상' ELSE '대기중' END AS process_status"""
-PROCESS_TO_STATUS = {"진행중": "확인중", "처리완료": "해결", "미대상": "오탐"}   # 대기중은 알림 여부로 관찰/접수
+# 내부 상태 ↔ 화면 처리상태 (sql/13_observe_manual_notify.sql 참고)
+PROCESS_STATUS_SQL = """CASE i.status WHEN '관찰' THEN '관찰' WHEN '접수' THEN '대기중' WHEN '확인중' THEN '진행중'
+                                  WHEN '해결' THEN '처리완료' WHEN '오탐' THEN '오탐' WHEN '미대상' THEN '미대상'
+                                  ELSE i.status END AS process_status"""
+PROCESS_TO_STATUS = {"대기중": "접수", "진행중": "확인중", "처리완료": "해결", "오탐": "오탐", "미대상": "미대상"}
+CLOSED_STATUSES = ("해결", "오탐", "미대상")
 PERIOD_SQL = {"today": "i.created_at >= date_trunc('day', now())",
               "7d": "i.created_at >= now() - interval '7 days'",
               "all": "TRUE"}
@@ -25,11 +28,19 @@ KST_DATE = "(({col}) AT TIME ZONE 'Asia/Seoul')::date"
 # 모니터 건수 박스 → 목록 조건
 BOX_SQL = {
     "registered": "TRUE",
-    "urgent": "i.severity = :top AND i.status NOT IN ('해결', '오탐')",
+    "urgent": "i.severity = :top AND i.status NOT IN ('해결', '오탐', '미대상')",
+    "observing": "i.status = '관찰'",
     "messaged": "EXISTS (SELECT 1 FROM messenger_log m WHERE m.incident_id = i.incident_id)",
     "same_type": "i.mass_signal",
     "resolved": "i.status = '해결'",
 }
+
+
+def incident_no(incident_id) -> str:
+    """장애번호 표시 형식 ERR-0001 (sql/12_incident_no.sql 의 incident_no 컬럼과 같은 규칙)."""
+    if incident_id is None or incident_id == "":
+        return "-"
+    return f"ERR-{int(incident_id):04d}"
 
 
 def _rows(result) -> list[dict]:
@@ -199,6 +210,16 @@ def find_it_staff(db: Session, error_type: str) -> list[dict]:
     """), {"et": error_type}))
 
 
+def list_it_staff(db: Session, error_type: str) -> list[dict]:
+    """수동 알림 수신자 선택용: 메신저 ID 가 있는 IT담당자 전체 (해당 오류유형 담당자 먼저)."""
+    return _rows(db.execute(text(f"""
+        {_EMP_SELECT}
+         WHERE emp_group = 'IT담당자' AND use_yn AND messenger_id IS NOT NULL
+         ORDER BY CASE WHEN :et = ANY(duty_error_types) THEN 0 ELSE 1 END,
+                  CASE duty_role WHEN '담당' THEN 1 WHEN '부담당' THEN 2 WHEN '팀장' THEN 3 ELSE 9 END, emp_id
+    """), {"et": error_type}))
+
+
 def employees_by_ids(db: Session, ids: list[int]) -> list[dict]:
     if not ids:
         return []
@@ -329,7 +350,7 @@ def find_open_incidents(db: Session, error_type: str, window_min: int) -> list[d
     return _rows(db.execute(text("""
         SELECT * FROM incident_alert
          WHERE error_type = :et
-           AND status IN ('관찰', '접수', '확인중')
+           AND status IN ('관찰', '접수', '확인중', '미대상')       -- 미대상도 추가 제보가 쌓이면 재판정
            AND last_reported_at >= now() - make_interval(mins => :win)
          ORDER BY last_reported_at DESC
     """), {"et": error_type, "win": window_min}))

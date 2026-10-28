@@ -46,7 +46,7 @@ class AgentState(TypedDict, total=False):
 NODES: dict[str, tuple[Callable, str, str]] = {
     "detect":   (detection.run,   detection.NAME,   "STT 원문 분석 · 상담이력 분석 후 장애 여부 종합 판정 중"),
     "dedup":    (dedup.run,       dedup.NAME,       "최근 60분 동일 유형 장애와 유사도 비교 중"),
-    "severity": (severity.run,    severity.NAME,    "1차 판별기준 알림 대상 판정 → 2차 과거 오탐 사례 대조 중"),
+    "severity": (severity.run,    severity.NAME,    "1차 판별기준 + 과거 유사 사례(RAG) 기반 LLM 판정 → 2차 과거 오탐 사례 대조 중"),
     "notify":   (notify.run,      notify.NAME,      "1차·2차 수신자 식별 · 알림 템플릿 작성 · 메신저 전송 중"),
     "record":   (notify.run_record, notify.RECORD_NAME, "장애알림 정보 등록 중 (메신저 미발송)"),
     "improve":  (improve.run,     improve.NAME,     "개선의견 기록 · 관련 장애 연결 중 (알림 없음)"),

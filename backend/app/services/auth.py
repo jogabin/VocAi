@@ -172,4 +172,6 @@ SysAdminUser = Annotated[dict, Depends(require_roles(SYS_ADMIN))]
 AdminUser = SysAdminUser            # 이전 이름 호환 (사용자·인사·고객·상담데이터 관리 = 시스템관리자)
 CriteriaUser = Annotated[dict, Depends(require_roles(*CRITERIA_ROLES))]
 ConsultUser = Annotated[dict, Depends(require_roles(*CONSULT_ROLES))]
+MANAGER_ROLES = ("센터관리자", "시스템관리자")                   # 관찰 장애 수동 알림 전송 · 종결
+ManagerUser = Annotated[dict, Depends(require_roles(*MANAGER_ROLES))]
 Token = Annotated[str | None, Depends(bearer_token)]

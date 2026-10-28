@@ -67,13 +67,23 @@ export async function readDialogExcel(file) {
   return data
 }
 
-/** 대화내용 엑셀 양식 내려받기 (로그인 토큰이 필요해서 링크 대신 Blob 으로 받음) */
-export async function downloadDialogTemplate() {
-  const { data } = await http.get('/stt/dialog-excel/template', { responseType: 'blob' })
+/** 로그인 토큰이 필요한 파일은 링크 대신 Blob 으로 받아 저장 */
+async function saveBlob(path, fileName) {
+  const { data } = await http.get(path, { responseType: 'blob' })
   const url = URL.createObjectURL(data)
   const a = document.createElement('a')
   a.href = url
-  a.download = '상담대화_양식.xlsx'
+  a.download = fileName
   a.click()
   URL.revokeObjectURL(url)
+}
+
+/** 대화내용 엑셀 양식 내려받기 */
+export function downloadDialogTemplate() {
+  return saveBlob('/stt/dialog-excel/template', '상담대화_양식.xlsx')
+}
+
+/** STT 원문 대화 엑셀 추출 (업로드 양식과 같은 형식 → 상담데이터 등록의 엑셀로 불러오기에 그대로 사용) */
+export function downloadDialogExcel(callId) {
+  return saveBlob(`/stt/${encodeURIComponent(callId)}/dialog-excel`, `상담대화_${callId}.xlsx`)
 }

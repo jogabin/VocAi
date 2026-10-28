@@ -4,7 +4,8 @@
 - 저장소: incident_embedding 테이블
     · pgvector 확장이 있으면 embedding vector 컬럼 + `<=>`(코사인 거리) 연산으로 DB에서 검색
     · 없으면 embedding real[] 컬럼에 저장하고 파이썬에서 코사인 유사도 계산 (자동 대체)
-- 임베딩 서버에 연결할 수 없으면 None 을 돌려주고, 호출 측은 문자열 유사도로 대체합니다.
+- 검색 방식은 RAG_SEARCH 로 정합니다. 기본 text(문자열 유사도)는 임베딩을 쓰지 않으므로 search_similar 가 None 을
+  돌려주고, 호출 측(심각도 판별)이 문자열 유사도로 검색합니다. embedding 이어도 임베딩 서버에 연결할 수 없으면 같은 방식으로 대체됩니다.
 """
 import hashlib
 import logging
@@ -73,8 +74,13 @@ def vector_mode(db: Session) -> str:
     return _vector_mode
 
 
+def embedding_enabled() -> bool:
+    return settings.rag_search == "embedding" and bool(settings.ollama_embed_model)
+
+
 def status(db: Session) -> dict:
-    return {"model": settings.ollama_embed_model, "vector_mode": vector_mode(db),
+    return {"search": "embedding" if embedding_enabled() else "text",
+            "model": settings.ollama_embed_model, "vector_mode": vector_mode(db),
             "embed_ok": _last_status["ok"], "embed_error": _last_status["error"]}
 
 
@@ -92,7 +98,7 @@ def incident_content(inc: dict) -> str:
 def ensure_embeddings(db: Session, incident_ids: list[int] | None = None) -> int:
     """해결/오탐 장애 중 임베딩이 없거나 내용이 바뀐 건을 임베딩해 저장. 저장 건수 반환."""
     mode = vector_mode(db)
-    if mode == "missing":
+    if mode == "missing" or not embedding_enabled():
         return 0
     cond = "AND i.incident_id = ANY(:ids)" if incident_ids else ""
     rows = [dict(r) for r in db.execute(text(f"""
@@ -132,7 +138,9 @@ def ensure_embeddings(db: Session, incident_ids: list[int] | None = None) -> int
 # 유사 사례 검색
 # ---------------------------------------------------------------------
 def search_similar(db: Session, query: str, k: int = 3) -> tuple[list[dict], str] | None:
-    """(유사사례 목록, 검색방식) 반환. 임베딩 사용 불가 시 None."""
+    """(유사사례 목록, 검색방식) 반환. 임베딩 미사용(RAG_SEARCH=text)·사용 불가 시 None."""
+    if not embedding_enabled():
+        return None
     mode = vector_mode(db)
     if mode == "missing":
         return None

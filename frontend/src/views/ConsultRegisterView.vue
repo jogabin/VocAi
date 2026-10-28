@@ -3,7 +3,8 @@ import { ref, reactive, computed, watch, nextTick, onMounted, onBeforeUnmount } 
 import { fetchSttCall, createConsult, fetchAgentRun, rerunAgent, draftConsultSummary } from '../api/vocApi'
 import { useHashRoute, navigate } from '../composables/useHashRoute'
 import { useAuth } from '../composables/useAuth'
-import { fmtDateTime, fmtDuration } from '../utils/format'
+import { downloadDialogExcel } from '../api/adminApi'
+import { fmtDateTime, fmtDuration, incidentNo } from '../utils/format'
 import ChatTranscript from '../components/voc/ChatTranscript.vue'
 import AgentTimeline from '../components/voc/AgentTimeline.vue'
 import AgentGraph from '../components/voc/AgentGraph.vue'
@@ -118,6 +119,22 @@ function copyDialog() {
   navigate('/consult-data', { copy: call.value.call_id })
 }
 
+/* ---------- 원문대화 엑셀추출: 상담데이터 등록의 엑셀 업로드 양식(화자 | 대화내용)으로 내려받기 ---------- */
+const exporting = ref(false)
+const exportError = ref('')
+
+async function exportDialog() {
+  exporting.value = true
+  exportError.value = ''
+  try {
+    await downloadDialogExcel(call.value.call_id)
+  } catch (e) {
+    exportError.value = e.message
+  } finally {
+    exporting.value = false
+  }
+}
+
 /* ---------- 상담이력 등록 + 에이전트 진행 ---------- */
 const submitting = ref(false)
 const submitError = ref('')
@@ -217,8 +234,14 @@ onBeforeUnmount(() => clearTimeout(pollTimer))
             <ChatTranscript :utterances="call.utterances" :customer-name="call.customer_name" :agent-name="agentName(call.agent_name)" />
           </div>
           <div v-if="canCopyDialog" class="copy-bar">
-            <span class="muted">이 원문 대화를 그대로 복사해 상담데이터 등록 화면에서 새 상담으로 등록합니다.</span>
-            <button class="btn btn-sm" type="button" @click="copyDialog">원문대화 복사등록</button>
+            <span class="muted">이 원문 대화를 그대로 복사해 상담데이터 등록 화면에서 새 상담으로 등록하거나, 업로드 양식 엑셀로 내려받습니다.</span>
+            <div class="copy-actions">
+              <button class="btn btn-sm" type="button" @click="copyDialog">원문대화 복사등록</button>
+              <button class="btn btn-sm" type="button" :disabled="exporting" @click="exportDialog">
+                {{ exporting ? '추출 중…' : '원문대화 엑셀추출' }}
+              </button>
+            </div>
+            <span v-if="exportError" class="export-error">{{ exportError }}</span>
           </div>
         </section>
 
@@ -291,7 +314,7 @@ onBeforeUnmount(() => clearTimeout(pollTimer))
             <div v-if="run.status !== 'RUNNING'" class="run-foot">
               <span class="muted">{{ run.llm_used ? 'LLM(Claude) 분석 사용' : '규칙 기반 분석 (LLM 미사용/실패)' }}</span>
               <button v-if="run.incident_id" class="btn btn-sm" @click="navigate('/incident', { id: run.incident_id })">
-                장애 #{{ run.incident_id }} 상세 보기 →
+                장애 {{ incidentNo(run.incident_id) }} 상세 보기 →
               </button>
             </div>
           </div>
@@ -306,6 +329,8 @@ onBeforeUnmount(() => clearTimeout(pollTimer))
 .back { font-size: 12.5px; font-weight: 600; display: inline-block; margin-bottom: 4px; }
 .chat-box { height: 460px; }
 .copy-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--surface-2); border-radius: 0 0 var(--radius) var(--radius); font-size: 12px; flex-wrap: wrap; }
+.copy-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.export-error { flex-basis: 100%; color: var(--p1); }
 .form { border: none; margin: 0; min-width: 0; }
 .form .field > input, .form .field > select, .form .field > textarea { width: 100%; }
 .form textarea { min-height: 130px; }

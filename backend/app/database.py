@@ -18,7 +18,12 @@ class Settings(BaseSettings):
     ollama_base_url: str = "https://ollama.com"
     ollama_api_key: str = ""
     ollama_model: str = "gemma4:31b"
-    # 임베딩(RAG): Ollama Cloud는 임베딩 미지원 → PC의 로컬 Ollama 사용 (ollama pull bge-m3)
+    # RAG 유사사례 검색 방식: text(문자열 유사도, 기본) / embedding(Ollama 임베딩 + pgvector)
+    # 배포 서버에서는 PC의 로컬 Ollama에 접근할 수 없으므로 text 사용
+    rag_search: str = "text"
+    # RAG 검색 결과(과거 해결·오탐 사례)를 심각도 판별 LLM 프롬프트에 넣을지 여부
+    rag_in_llm: bool = True
+    # 임베딩(RAG_SEARCH=embedding): Ollama Cloud는 임베딩 미지원 → PC의 로컬 Ollama 사용 (ollama pull bge-m3)
     ollama_embed_base_url: str = "http://localhost:11434"
     ollama_embed_model: str = "bge-m3"
     embed_timeout_sec: float = 30.0

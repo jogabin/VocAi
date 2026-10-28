@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS incident_alert (
     error_type         VARCHAR(20)  NOT NULL,
     channel            VARCHAR(20),
     severity           VARCHAR(5)   NOT NULL DEFAULT 'P3',     -- P1 긴급 / P2 높음 / P3 보통 / P4 낮음
-    status             VARCHAR(10)  NOT NULL DEFAULT '접수',   -- 관찰 / 접수 / 확인중 / 해결 / 오탐
+    status             VARCHAR(10)  NOT NULL DEFAULT '접수',   -- 관찰 / 접수 / 확인중 / 해결 / 오탐 / 미대상 (13_observe_manual_notify.sql)
     report_count       INTEGER      NOT NULL DEFAULT 1,
     mass_signal        BOOLEAN      NOT NULL DEFAULT FALSE,    -- 동시다발 대규모 장애 신호
     symptoms           TEXT,

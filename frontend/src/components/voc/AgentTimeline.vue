@@ -1,5 +1,6 @@
 <script setup>
 import StatusBadge from './StatusBadge.vue'
+import { incidentNo } from '../../utils/format'
 
 const props = defineProps({ run: { type: Object, required: true }, compact: Boolean })
 
@@ -11,6 +12,25 @@ function stepsWithPending() {
   }
   if (!steps.length) steps.push({ seq: 1, agent_name: '장애감지 에이전트', status: 'WAIT', message: '대기' })
   return steps
+}
+
+// 심각도 판별 단계: RAG 유사 사례 검색 → LLM 프롬프트 활용 → 2차 오탐 대조
+function caseText(o) {
+  const cases = o.similar_cases || []
+  if (!cases.length) return '과거 해결·오탐 사례 중 유사 사례 없음'
+  return cases.map((c) => `${incidentNo(c.incident_id)} [${c.status}] ${c.title} (유사도 ${c.similarity})`).join(' · ')
+}
+function llmText(o) {
+  if (!o.rag.in_llm) return o.rag.count ? 'LLM 미사용 - 규칙 판별만 적용' : '전달할 사례 없음'
+  const refs = o.rag.ref_cases || []
+  return `유사 사례 ${o.rag.count}건을 프롬프트에 제공 → ` +
+    (refs.length ? `${refs.map(incidentNo).join(', ')} 참고해 초기 분석 작성` : '관련 사례 없음으로 판단')
+}
+function fpText(o) {
+  const s2 = o.stage2 || {}
+  if (!s2.checked) return '생략 (1차에서 알림 미대상)'
+  if (o.false_positive) return `과거 오탐 사례 ${incidentNo(s2.matched)} 일치 → 알림 제외`
+  return `오탐 사례 ${s2.fp_cases || 0}건 중 일치 없음 → 알림 대상 유지`
 }
 </script>
 
@@ -36,6 +56,14 @@ function stepsWithPending() {
           <em>{{ s.output.stt_analysis.reason }}</em>
           <span :class="s.output.consult_analysis.is_incident ? 'hit' : 'miss'">상담이력 · {{ s.output.consult_analysis.is_incident ? '장애' : '정상' }}</span>
           <em>{{ s.output.consult_analysis.reason }}</em>
+        </div>
+        <div v-if="!compact && s.output && s.output.rag" class="sub-analysis">
+          <span :class="s.output.rag.count ? 'hit' : 'miss'">RAG 검색 · {{ s.output.rag.method }}</span>
+          <em>{{ caseText(s.output) }}</em>
+          <span :class="s.output.rag.in_llm ? 'hit' : 'miss'">LLM 활용</span>
+          <em>{{ llmText(s.output) }}</em>
+          <span :class="s.output.false_positive ? 'hit' : 'miss'">2차 오탐 대조</span>
+          <em>{{ fpText(s.output) }}</em>
         </div>
       </div>
     </li>

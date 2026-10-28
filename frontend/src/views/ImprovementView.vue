@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { fetchImprovements } from '../api/vocApi'
 import { navigate } from '../composables/useHashRoute'
-import { fmtDate, fmtTime } from '../utils/format'
+import { fmtDate, fmtTime, incidentNo } from '../utils/format'
 
 /* 개선의견 목록
    - 장애감지 에이전트가 '개선의견'(해결·완료된 건의 문구·안내·절차 개선 요청)으로 분류한 상담
@@ -83,7 +83,7 @@ function toggle(o) {
                 <td class="wrap pre">{{ o.content }}</td>
                 <td class="nowrap">
                   <a v-if="o.related_incident_id" href="" @click.prevent.stop="navigate('/incident', { id: o.related_incident_id })">
-                    #{{ o.related_incident_id }} {{ o.related_title }}
+                    {{ incidentNo(o.related_incident_id) }} {{ o.related_title }}
                   </a>
                   <span v-else class="muted">-</span>
                 </td>

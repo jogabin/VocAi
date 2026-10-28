@@ -124,7 +124,23 @@ export async function fetchMonitorCounts({ dateFrom, dateTo } = {}) {
   return data
 }
 
-// 장애 상세: 처리 상태(대기중/진행중/미대상/처리완료) · 처리 내용 등록
+// 관찰 장애 수동 알림 (센터관리자·시스템관리자): 미리보기 → 전송 / 알림 없이 종결
+export async function fetchManualNotify(incidentId, severity) {
+  const { data } = await http.get(`/incidents/${incidentId}/manual-notify`, { params: severity ? { severity } : {} })
+  return data
+}
+
+export async function sendManualNotify(incidentId, payload) {
+  const { data } = await http.post(`/incidents/${incidentId}/manual-notify`, payload)
+  return data
+}
+
+export async function closeIncident(incidentId, payload) {
+  const { data } = await http.post(`/incidents/${incidentId}/close`, payload)
+  return data
+}
+
+// 장애 상세: 처리 상태(대기중/진행중/오탐/처리완료) · 처리 내용 등록
 export async function addIncidentAction(incidentId, payload) {
   const { data } = await http.post(`/incidents/${incidentId}/actions`, payload)
   return data

@@ -87,7 +87,7 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
            "notified_severity": inc.get("notified_severity"), "previous_status": inc["status"],
            "candidates": compared, "window_min": settings.dedup_window_min}
     ctx["dedup"] = out
-    msg = f"장애 #{inc['incident_id']}와 동일 제보로 통합 (유사도 {score}, 누적 {count}건 · 독립 고객 {customers}명)"
+    msg = f"장애 {repo.incident_no(inc['incident_id'])}에 동일 제보로 통합 (유사도 {score}, 누적 {count}건 · 독립 고객 {customers}명)"
     if mass:
         msg += f" → 대규모 장애 신호 (기준 독립 고객 {threshold}명 이상) · 모니터 '동일유형 장애' 건수에 등록"
     out["same_type_registered"] = mass

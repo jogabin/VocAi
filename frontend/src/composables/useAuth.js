@@ -55,8 +55,9 @@ export const ROLE_SYS = ['시스템관리자']                              // S
 const role = computed(() => state.user?.auth_role || '')
 const hasRole = (roles) => !roles || roles.includes(role.value)
 const isSysAdmin = computed(() => role.value === '시스템관리자')
+const isManager = computed(() => ['센터관리자', '시스템관리자'].includes(role.value))   // 관찰 장애 수동 알림 · 종결
 const isItStaff = computed(() => role.value === 'IT담당자' || state.user?.user_id == null && state.user?.login_id === 'dev')
 
 export function useAuth() {
-  return { state, role, hasRole, isSysAdmin, isItStaff, restore, login, logout }
+  return { state, role, hasRole, isSysAdmin, isManager, isItStaff, restore, login, logout }
 }

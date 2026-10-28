@@ -1,5 +1,11 @@
 const pad = (n) => String(n).padStart(2, '0')
 
+// 장애번호 ERR-0001 (상담 #번호·run #번호와 구분. 서버 repo.incident_no 와 같은 규칙)
+export function incidentNo(id) {
+  if (id == null || id === '') return '-'
+  return 'ERR-' + String(id).padStart(4, '0')
+}
+
 export function fmtTime(v) {
   if (!v) return '-'
   const d = new Date(v)
@@ -40,5 +46,9 @@ export function timeAgo(v) {
 export const SEVERITY_LABEL = { P1: '긴급', P2: '높음', P3: '보통', P4: '낮음' }
 
 // 장애 처리상태 (화면 표시)
-export const PROCESS_STATUSES = ['대기중', '진행중', '미대상', '처리완료']
-export const PROCESS_BADGE = { 대기중: 'badge-red', 진행중: 'badge-amber', 미대상: 'badge-gray', 처리완료: 'badge-green' }
+//   관찰 = 알림 미대상 · 센터관리자 확인 대기 / 대기중 = 알림 발송(자동·수동) / 미대상 = 등급 기준·센터관리자 종결
+//   오탐 = 고객 실수·정상 동작 확인 (2차 오탐 대조 사례로 사용)
+export const PROCESS_STATUSES = ['대기중', '진행중', '오탐', '처리완료']          // IT담당자 처리 등록용
+export const PROCESS_BADGE = {
+  관찰: 'badge-blue', 대기중: 'badge-red', 진행중: 'badge-amber', 처리완료: 'badge-green', 미대상: 'badge-gray', 오탐: 'badge-gray',
+}

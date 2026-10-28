@@ -64,6 +64,13 @@ class Criteria:
         n = self._by_code.get(code, {}).get("notify_min_reports")
         return n is not None and report_count >= n
 
+    def observe(self, code: str) -> bool:
+        """알림 미대상일 때 관찰로 등록할지 (False 면 미대상 자동 종결)."""
+        return bool(self._by_code.get(code, {}).get("observe_yn"))
+
+    def unnotified_status(self, code: str) -> str:
+        return "관찰" if self.observe(code) else "미대상"
+
     def roles(self, code: str) -> list[str]:
         raw = self._by_code.get(code, {}).get("recipient_roles") or ""
         return [r.strip() for r in raw.split(",") if r.strip()]
@@ -102,16 +109,17 @@ class Criteria:
 # ---------------------------------------------------------------------
 _CODE_DEFS = {
     "P1": ("다수 고객의 핵심 거래가 계속 막히거나 금전 피해가 발생하는 장애, 또는 지급 기한이 임박했는데 대체수단 없이"
-           " 거래가 계속 막혀 중대한 피해가 예상되는 장애", 1),
-    "P2": ("로그인·인증·이체 등 핵심 기능을 사용할 수 없는 장애", None),      # 알림은 P1만
-    "P3": ("일부 기능 지연이나 화면 오류로 불편하지만 우회가 가능한 장애", None),
-    "P4": ("영향이 미미하거나 고객 실수·정상 동작으로 보이는 건", None),
+           " 거래가 계속 막혀 중대한 피해가 예상되는 장애", 1, False),
+    "P2": ("로그인·인증·이체 등 핵심 기능을 사용할 수 없는 장애", None, True),   # 알림은 P1만, P2 는 관찰
+    "P3": ("일부 기능 지연이나 화면 오류로 불편하지만 우회가 가능한 장애", None, False),
+    "P4": ("영향이 미미하거나 고객 실수·정상 동작으로 보이는 건", None, False),
 }
 
 
 def _code_grades() -> list[dict]:
     return [{"grade_code": c, "grade_name": rules.SEVERITY_LABEL[c], "grade_order": i + 1,
              "definition": _CODE_DEFS[c][0], "judge_examples": None, "notify_min_reports": _CODE_DEFS[c][1],
+             "observe_yn": _CODE_DEFS[c][2],
              "recipient_roles": ",".join(rules.RECIPIENT_ROLES[c]), "message_prefix": "[장애알림]"}
             for i, c in enumerate(rules.SEVERITY_ORDER)]
 
@@ -209,7 +217,8 @@ def invalidate() -> None:
 # ---------------------------------------------------------------------
 _TABLES = {
     "grade": ("severity_grade", "grade_code",
-              {"grade_name", "grade_order", "definition", "judge_examples", "notify_min_reports", "recipient_roles",
+              {"grade_name", "grade_order", "definition", "judge_examples", "notify_min_reports", "observe_yn",
+               "recipient_roles",
                "target_ack_min", "target_resolve_min", "message_prefix", "use_yn", "valid_from", "valid_to"}),
     "base": ("severity_base_rule", "rule_id",
              {"error_type", "channel", "system_name", "base_grade", "rationale", "use_yn", "valid_from", "valid_to"}),

@@ -43,5 +43,5 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
            "related_incident_id": row["related_incident_id"]}
     msg = f"개선의견 #{row['improvement_id']} 등록 - 알림·승인 대상 아님, 장애 누적에서 제외"
     if related:
-        msg += f" · 관련 장애 #{related['incident_id']} '{related['title']}' 연결 (유사도 {round(sim, 3)})"
+        msg += f" · 관련 장애 {repo.incident_no(related['incident_id'])} '{related['title']}' 연결 (유사도 {round(sim, 3)})"
     return "DONE", msg, out

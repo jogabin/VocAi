@@ -10,6 +10,7 @@
 - POST  /stt                       기초 상담데이터 등록 (관리자): 통화 + 대화 생성, 상담상태 '진행'
 - POST  /stt/dialog-excel          대화내용 엑셀 읽기 (관리자): 저장하지 않고 대화 목록만 돌려줌
 - GET   /stt/dialog-excel/template 대화내용 엑셀 양식 내려받기
+- GET   /stt/{call_id}/dialog-excel STT 원문 대화 엑셀 추출 (관리자, 업로드 양식과 같은 형식)
 """
 import re
 from datetime import date, datetime, time, timedelta
@@ -22,7 +23,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
 
 from app.database import DB
-from app.services import auth, dialog_excel
+from app.services import auth, dialog_excel, repo
 
 router = APIRouter(tags=["customer"])
 KST = ZoneInfo("Asia/Seoul")
@@ -241,9 +242,21 @@ async def read_dialog_excel(file: UploadFile, _: auth.AdminUser):
         raise HTTPException(400, str(e))
 
 
+def _xlsx(data: bytes, ascii_name: str, name: str) -> Response:
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f"attachment; filename={ascii_name}; filename*=UTF-8''{quote(name)}"})
+
+
 @router.get("/stt/dialog-excel/template", summary="대화내용 엑셀 양식 내려받기")
 def dialog_excel_template(_: auth.AdminUser):
-    name = quote("상담대화_양식.xlsx")
-    return Response(dialog_excel.template(),
-                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    headers={"Content-Disposition": f"attachment; filename=dialog_template.xlsx; filename*=UTF-8''{name}"})
+    return _xlsx(dialog_excel.template(), "dialog_template.xlsx", "상담대화_양식.xlsx")
+
+
+@router.get("/stt/{call_id}/dialog-excel", summary="STT 원문 대화 엑셀 추출 (업로드 양식과 같은 형식)")
+def dialog_excel_export(call_id: str, db: DB, _: auth.AdminUser):
+    call = repo.get_stt_call(db, call_id)
+    if not call:
+        raise HTTPException(404, "통화를 찾을 수 없습니다.")
+    if not call.get("utterances"):
+        raise HTTPException(400, "원문 대화가 없습니다.")
+    return _xlsx(dialog_excel.export(call["utterances"]), f"dialog_{call_id}.xlsx", f"상담대화_{call_id}.xlsx")

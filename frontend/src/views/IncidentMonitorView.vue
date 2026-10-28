@@ -3,7 +3,8 @@ import { computed, ref, watch } from 'vue'
 import { fetchMonitorCounts, fetchMonitorSummary, fetchIncidents, fetchAgentRuns } from '../api/vocApi'
 import { useHashRoute, navigate } from '../composables/useHashRoute'
 import { usePolling } from '../composables/usePolling'
-import { fmtDate, fmtTime, timeAgo, PROCESS_BADGE } from '../utils/format'
+import { fmtDate, fmtTime, timeAgo, incidentNo, PROCESS_BADGE } from '../utils/format'
+import mascot from '../assets/mascot.png'
 import SeverityBadge from '../components/voc/SeverityBadge.vue'
 import StatusBadge from '../components/voc/StatusBadge.vue'
 
@@ -30,6 +31,7 @@ function initialDates(q) {
 const BOXES = [
   { key: 'registered', label: '장애 정보 등록', desc: '에이전트가 등록한 전체 장애' },
   { key: 'urgent', label: '긴급 장애', desc: '최상위 등급 · 미처리' },
+  { key: 'observing', label: '관찰 (확인 대기)', desc: '알림 미대상 · 센터관리자 확인 필요' },
   { key: 'messaged', label: '메신저 알림 전송', desc: '담당자에게 알림이 나간 장애' },
   { key: 'same_type', label: '동일유형 장애', desc: '60분 내 동일 유형 다발 (대규모 신호)' },
   { key: 'resolved', label: '장애 처리 완료', desc: 'IT담당자 처리완료' },
@@ -103,6 +105,7 @@ function openIncident(i) {
 const ragLabel = computed(() => {
   const r = summary.value?.rag
   if (!r) return ''
+  if (r.search === 'text') return 'RAG 문자열 유사도'
   const mode = { pgvector: 'pgvector', array: '임베딩(배열)', missing: '미구성' }[r.vector_mode] || r.vector_mode
   return r.embed_ok === false ? `RAG ${mode} · 문자열 유사도 대체` : `RAG ${mode} · ${r.model}`
 })
@@ -119,7 +122,7 @@ const ragLabel = computed(() => {
         <span v-if="summary" class="badge" :class="summary.llm_enabled ? 'badge-blue' : 'badge-gray'">
           {{ summary.llm_enabled ? 'LLM ' + summary.llm_desc : '규칙 기반 모드' }}
         </span>
-        <span v-if="summary" class="badge" :class="summary.rag?.embed_ok === false ? 'badge-amber' : 'badge-gray'">{{ ragLabel }}</span>
+        <span v-if="summary" class="badge" :class="summary.rag?.search !== 'text' && summary.rag?.embed_ok === false ?'badge-amber' : 'badge-gray'">{{ ragLabel }}</span>
         <span v-if="summary" class="badge badge-gray">메신저 {{ summary.messenger_mode }}</span>
       </div>
     </div>
@@ -165,7 +168,7 @@ const ragLabel = computed(() => {
           </thead>
           <tbody>
             <tr v-for="i in list" :key="i.incident_id" @click="openIncident(i)">
-              <td class="mono">#{{ i.incident_id }}</td>
+              <td class="mono" style="white-space: nowrap">{{ incidentNo(i.incident_id) }}</td>
               <td><SeverityBadge :value="i.severity" /></td>
               <td><span class="badge" :class="PROCESS_BADGE[i.process_status]">{{ i.process_status }}</span></td>
               <td class="wrap"><strong>{{ i.title }}</strong></td>
@@ -180,7 +183,9 @@ const ragLabel = computed(() => {
             </tr>
           </tbody>
         </table>
-        <div v-if="!list.length" class="empty">해당하는 장애가 없습니다.</div>
+        <div v-if="!list.length" class="empty">
+          <img class="empty-mascot" :src="mascot" alt="" width="96" height="96"><br>해당하는 장애가 없습니다.
+        </div>
       </div>
     </section>
 
@@ -215,7 +220,7 @@ const ragLabel = computed(() => {
 .dates-label { font-size: 13px; font-weight: 600; color: var(--text-2); margin-right: 2px; }
 .dates input { padding: 5px 8px; }
 
-.boxes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.boxes { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 @media (max-width: 1100px) { .boxes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .boxes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .box { --c: var(--accent); --soft: var(--accent-soft); font: inherit; text-align: left; cursor: pointer; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 4px; position: relative; overflow: hidden; transition: border-color .15s, box-shadow .15s, transform .1s; }
@@ -228,6 +233,7 @@ const ragLabel = computed(() => {
 .box-desc { font-size: 11.5px; color: var(--text-3); }
 .box-registered { --c: var(--accent); --soft: var(--accent-soft); }
 .box-urgent { --c: var(--p1); --soft: var(--p1-soft); }
+.box-observing { --c: var(--accent); --soft: var(--accent-soft); }
 .box-messaged { --c: var(--navy); --soft: var(--navy-soft); }
 .box-same_type { --c: var(--p2); --soft: var(--p2-soft); }
 .box-resolved { --c: var(--ok); --soft: var(--ok-soft); }

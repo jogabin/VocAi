@@ -4,18 +4,22 @@
 (테이블이 없거나 비어 있으면 rules.py 코드 기본값)
 
 1차: 판별기준(판별기준 조회 API /api/severity-criteria 와 같은 서비스)으로 메신저 알림 대상 여부 식별
-     - 기본 등급(오류유형·접촉채널) + 조정 규칙(적용순서: 지속 차단, 키워드 상향, 기한 임박, 정상 진행, 복수 제보, 대규모 신호)
+     - 기본 등급(오류유형·접촉채널) + 조정 규칙(adjust_rule 의 apply_order 순)
      - 등급별 알림 조건(알림 최소 제보 건수)으로 알림 대상 판정
-     - LLM 사용 시 같은 등급 정의를 프롬프트로 주고 등급·알림 여부를 함께 판단
-2차: 1차에서 알림 대상일 때만, 과거 장애 사례(RAG) 중 '오탐'으로 판별된 건과 대조
+     - RAG: 과거 해결·오탐 사례를 검색(RAG_SEARCH, 기본 문자열 유사도)해 LLM 프롬프트에 함께 제공
+     - LLM 사용 시 등급 정의 + 과거 유사 사례를 프롬프트로 주고 등급·초기 분석을 판단
+2차: 1차에서 알림 대상일 때만, 1차에서 검색한 사례 중 '오탐'으로 판별된 건과 대조
      → 오탐 규칙(FALSE_POSITIVE)에 해당하면 알림 제외
 결과: 알림 대상 → 메신저 전송 에이전트 / 미대상 → 장애알림 정보만 등록
 적용한 기준 버전과 규칙코드를 결과에 남겨 장애에 기록합니다.
 """
+import logging
+
 from app.agents import llm, rules
 from app.database import settings
 from app.services import criteria, rag, repo
 
+log = logging.getLogger("voc.severity")
 NAME = "심각도 판별 에이전트"
 BIGRAM_FP_THRESHOLD = 0.25   # 문자열 유사도(대체 방식)일 때 오탐 일치 기준
 
@@ -23,10 +27,14 @@ SYSTEM_TMPL = """당신은 금융 IT 장애 심각도 판별 에이전트입니�
 아래 장애등급 판별기준과 규칙 기반 1차 판별 결과를 보고 심각도 등급과 메신저 알림 대상 여부를 결정하세요.
 등급은 고객이 말한 사실(재시도 후에도 계속 막히는지, 지급·신청 기한, 구체적 피해, 대체수단 유무, 같은 증상의 독립 고객 수)로 판단하고 오류 원인은 단정하지 마세요.
 상담사의 마무리·전달 멘트(예: "긴급 건으로 전달하겠습니다")는 응대 표현일 뿐이므로 등급 판단 근거로 쓰지 마세요.
+[과거 유사 사례]가 주어지면 추정 원인과 초기 점검 포인트(analysis)를 쓸 때 참고하고, 관련 있는 해결 사례는 장애번호와 처리결과를 인용하세요.
+과거 사례는 참고 자료입니다. 등급은 판별기준과 이번 고객 발화로 판단하고 과거 사례의 등급을 그대로 따르지 마세요.
+오탐 사례와 비슷해도 이번 고객 발화에서 고객 귀책(비밀번호 오입력 등)이 확인되지 않으면 오탐으로 보지 마세요. 관련 없는 사례는 무시하세요.
 [장애등급 판별기준]
 {definitions}
 출력 JSON: {{"severity": "{codes}", "notify": bool,
-            "analysis": "IT담당자를 위한 추정 원인과 초기 점검 포인트 (3~5문장, 한국어)", "reason": "판단 근거"}}"""
+            "analysis": "IT담당자를 위한 추정 원인과 초기 점검 포인트 (3~5문장, 한국어)", "reason": "판단 근거",
+            "ref_cases": [참고한 과거 사례 장애번호(예: "ERR-0003"), 없으면 빈 배열]}}"""
 
 
 def _bigram_cases(db, det: dict, query: str) -> list[dict]:
@@ -53,8 +61,21 @@ def _similar_cases(db, det: dict, customer_text: str) -> tuple[list[dict], str, 
         # 문자열 유사도는 라벨 단어("증상:")가 섞이면 점수가 떨어지므로 원문만 비교
         plain = f"{det['title']} {det['symptoms']} {customer_text}"
         cases, method, threshold = _bigram_cases(db, det, plain), "문자열 유사도", BIGRAM_FP_THRESHOLD
-    keep = ("incident_id", "title", "status", "severity", "error_type", "resolution", "similarity")
+    keep = ("incident_id", "title", "status", "severity", "error_type", "symptoms", "resolution", "similarity")
     return [{k: c.get(k) for k in keep} for c in cases], method, threshold
+
+
+def _cases_prompt(similar: list[dict]) -> str:
+    """LLM 프롬프트에 넣을 과거 유사 사례 (RAG 검색 결과)."""
+    lines = []
+    for c in similar:
+        lines.append(f"- {repo.incident_no(c['incident_id'])} [{c['status']}] {c['title']} (유형 {c.get('error_type')}, 등급 {c.get('severity')},"
+                     f" 유사도 {c['similarity']})")
+        if c.get("symptoms"):
+            lines.append(f"  증상: {str(c['symptoms'])[:150]}")
+        if c.get("resolution"):
+            lines.append(f"  처리결과: {str(c['resolution'])[:200]}")
+    return "\n".join(lines)
 
 
 def _rule_analysis(det: dict, similar: list[dict]) -> str:
@@ -62,7 +83,7 @@ def _rule_analysis(det: dict, similar: list[dict]) -> str:
     solved = [c for c in similar if c["status"] == "해결"]
     if solved:
         c = solved[0]
-        lines.append(f"유사 사례 #{c['incident_id']} '{c['title']}'(유사도 {c['similarity']}) - {c['resolution']}")
+        lines.append(f"유사 사례 {repo.incident_no(c['incident_id'])} '{c['title']}'(유사도 {c['similarity']}) - {c['resolution']}")
     guide = rules.CHECK_GUIDE.get(det["error_type"], rules.CHECK_GUIDE["기타"])
     lines.append("우선 점검: " + ", ".join(guide))
     env = det.get("env") or {}
@@ -137,7 +158,19 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
     analysis = None
     source = "판별기준"
 
+    # RAG 검색: 과거 해결·오탐 사례. LLM 프롬프트 · 2차 오탐 대조 · 초기 분석 · 메신저 과거 해결 사례에 함께 사용
+    try:
+        similar, rag_method, fp_threshold = _similar_cases(db, det, text)
+    except Exception:
+        log.exception("유사 사례 검색 실패")
+        similar, rag_method, fp_threshold = [], "-", 1.0
+    use_cases = settings.rag_in_llm and bool(similar)
+    refs: list[int] = []
+    reasons.append(f"RAG 유사 사례 검색 ({rag_method}): {len(similar)}건"
+                   + (" → LLM 프롬프트에 제공" if use_cases and llm.enabled() else ""))
+
     if llm.enabled():
+        cases_txt = f"\n\n[과거 유사 사례]\n{_cases_prompt(similar)}" if use_cases else ""
         system = SYSTEM_TMPL.format(definitions=cr.llm_definitions(), codes="|".join(cr.codes()))
         ans = llm.ask_json(system, f"""[고객 발화]
 {text}
@@ -150,10 +183,14 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
 
 [규칙 기반 1차 판별]
 심각도={sev}, 알림 대상={notify}
-근거: {reasons}""")
+근거: {reasons}{cases_txt}""")
         if ans and ans.get("severity") in cr.codes():
             ctx["llm_used"] = True
             source = "판별기준+LLM"
+            by_no = {repo.incident_no(c["incident_id"]): c["incident_id"] for c in similar}
+            refs = [by_no[str(r).strip()] for r in (ans.get("ref_cases") or []) if str(r).strip() in by_no]
+            if refs:
+                reasons.append("LLM 참고 사례: " + ", ".join(repo.incident_no(r) for r in refs))
             mass_rule = next((r for r in cr.adjust_rules if r["rule_type"] == "MASS_SIGNAL"), None)
             if dd.get("mass_signal") and mass_rule and mass_rule.get("target_grade"):
                 sev = mass_rule["target_grade"]          # 대규모 장애 신호는 LLM 판단보다 우선
@@ -168,10 +205,8 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
 
     # ================= 2차: 과거 오탐 사례 대조 (알림 대상일 때만) =================
     false_positive = False
-    similar, rag_method = [], "-"
     stage2 = {"checked": False}
     if notify:
-        similar, rag_method, fp_threshold = _similar_cases(db, det, text)
         fp_rule = cr.false_positive_rule()
         fp_cases = [c for c in similar if c["status"] == "오탐"]
         fp_case = next((c for c in fp_cases if c["similarity"] >= fp_threshold), None)
@@ -183,29 +218,34 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
             sev = fp_rule.get("target_grade") or cr.lowest()
             notify = False
             applied.append(fp_rule["rule_code"])
-            reasons.append(f"2차 대조: [{fp_rule['rule_code']}] 과거 오탐 사례 #{fp_case['incident_id']}"
+            reasons.append(f"2차 대조: [{fp_rule['rule_code']}] 과거 오탐 사례 {repo.incident_no(fp_case['incident_id'])}"
                            f"(유사도 {fp_case['similarity']}) + 고객 귀책 신호 {fp_words} → 오탐, 알림 제외")
         else:
             reasons.append(f"2차 대조: 과거 오탐 사례와 일치 없음 ({rag_method}, 비교 {len(similar)}건) → 최종 알림 대상")
-        source += f"+RAG({rag_method})"
     else:
         reasons.append("2차 대조 생략 (1차에서 알림 미대상)")
+    if rag_method != "-":
+        source += f"+RAG({rag_method})"
 
     analysis = analysis or _rule_analysis(det, similar)
     out = {"severity": sev, "severity_label": cr.label(sev), "notify": notify,
            "false_positive": false_positive, "stage1": stage1, "stage2": stage2,
            "reasons": reasons, "similar_cases": similar,
            "analysis": analysis, "source": source, "rag_method": rag_method,
-           "criteria_version": cr.version, "criteria_source": cr.source, "applied_rules": applied}
+           "criteria_version": cr.version, "criteria_source": cr.source, "applied_rules": applied,
+           "rag": {"method": rag_method, "count": len(similar), "in_llm": use_cases and source != "판별기준",
+                   "ref_cases": refs}}
     ctx["severity"] = out
 
     s1 = f"1차 {stage1['severity']} {'알림 대상' if stage1['notify'] else '미대상'}"
     if not stage2["checked"]:
-        decision = f"{s1} → 알림 미대상, 장애알림 정보만 등록 (추가 제보 시 재판정)"
+        decision = (f"{s1} → 알림 미대상, " + ("관찰 등록 (센터관리자 확인)" if cr.observe(sev)
+                                              else "미대상 종결 (추가 제보 시 재판정)"))
     elif false_positive:
-        decision = f"{s1} → 2차 과거 오탐 사례 #{stage2['matched']} 일치 → 알림 제외"
+        decision = f"{s1} → 2차 과거 오탐 사례 {repo.incident_no(stage2['matched'])} 일치 → 알림 제외"
     else:
         decision = f"{s1} → 2차 오탐 대조 통과 → 메신저 알림 대상"
     rules_txt = ", ".join(a for a in applied if not a.startswith("BASE"))
+    rag_txt = f" · RAG 유사 사례 {len(similar)}건" + (f"(LLM 참고 {', '.join(repo.incident_no(r) for r in refs)})" if refs else "")
     return "DONE", (f"최종 {sev}({cr.label(sev)}) / {decision} [{source}]"
-                    + (f" · 적용 규칙 {rules_txt}" if rules_txt else "")), out
+                    + (f" · 적용 규칙 {rules_txt}" if rules_txt else "") + rag_txt), out

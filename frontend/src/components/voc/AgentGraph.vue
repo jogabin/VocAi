@@ -18,7 +18,7 @@ const NODES = {
   start:    { x: 40,  y: 140, label: 'START', kind: 'terminal' },
   detect:   { x: 170, y: 140, label: '장애감지', sub: 'STT · 상담이력 분석' },
   dedup:    { x: 370, y: 140, label: '중복제보 통합', sub: '60분 · 유사도' },
-  severity: { x: 570, y: 140, label: '심각도 판별', sub: '판별기준 → 오탐 대조' },
+  severity: { x: 570, y: 140, label: '심각도 판별', sub: '판별기준·RAG → 오탐' },
   notify:   { x: 780, y: 62,  label: '메신저 전송', sub: '1차 · 2차 수신자' },
   record:   { x: 780, y: 218, label: '장애이력 등록', sub: '메신저 미발송' },
   improve:  { x: 370, y: 248, label: '개선의견 등록', sub: '알림 · 누적 없음' },

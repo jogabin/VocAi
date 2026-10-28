@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useAuth } from '../composables/useAuth'
+import mascot from '../assets/mascot.png'
 
 const auth = useAuth()
 const loginId = ref('')
@@ -32,8 +33,8 @@ onMounted(() => idInput.value?.focus())
 <template>
   <div class="login-wrap">
     <form class="login-card" @submit.prevent="submit">
+      <img class="mascot" :src="mascot" alt="VOC 장애 알림 AI Agent 마스코트" width="150" height="150">
       <div class="login-brand">
-        <span class="logo">V</span>
         <div>
           <strong>VOC 장애 알림 AI Agent</strong>
           <small>상담이력 기반 자율형 장애 감지 · 알림</small>
@@ -67,11 +68,12 @@ onMounted(() => idInput.value?.focus())
 
 <style scoped>
 .login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: linear-gradient(180deg, #e3f3fc 0, #f2f4f6 55%); }
-.login-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0, 0, 0, .06); padding: 32px 30px; }
-.login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
-.login-brand .logo { width: 36px; height: 36px; border-radius: 4px; background: linear-gradient(135deg, var(--navy) 0 55%, var(--accent) 55% 100%); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 17px; }
-.login-brand strong { display: block; font-size: 16px; color: var(--navy); letter-spacing: -0.03em; }
-.login-brand small { display: block; font-size: 11.5px; color: var(--text-3); }
+.login-card { position: relative; width: 100%; max-width: 400px; margin-top: 96px; background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0, 0, 0, .06); padding: 70px 30px 32px; }
+/* 마스코트가 카드 위로 살짝 걸쳐 앉음 */
+.mascot { position: absolute; top: -104px; left: 50%; transform: translateX(-50%); width: 150px; height: 150px; object-fit: contain; filter: drop-shadow(0 8px 12px rgba(0, 0, 0, .12)); }
+.login-brand { text-align: center; margin-bottom: 24px; }
+.login-brand strong { display: block; font-size: 18px; color: var(--navy); letter-spacing: -0.03em; }
+.login-brand small { display: block; font-size: 12px; color: var(--text-3); margin-top: 2px; }
 h2 { font-size: 22px; color: #222; letter-spacing: -0.03em; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 2px solid var(--text); }
 .field input { width: 100%; }
 .full { width: 100%; margin-top: 4px; }
