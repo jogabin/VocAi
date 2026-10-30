@@ -1,8 +1,10 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { fetchSttCalls } from '../api/vocApi'
 import { navigate } from '../composables/useHashRoute'
 import { usePolling } from '../composables/usePolling'
+import { usePager } from '../composables/usePager'
+import ListPager from '../components/voc/ListPager.vue'
 import { fmtDate, fmtDateTime, fmtDuration } from '../utils/format'
 
 /* 상담현황 목록: 조회 기간(통화 시작일)의 상담 진행 중인 통화와 상담완료 통화를 실시간(5초)으로 표시.
@@ -22,7 +24,42 @@ const loading = ref(false)
 const error = ref('')
 const updatedAt = ref(null)
 
-const rows = computed(() => all.value.filter((c) => !tab.value || c.consult_status === tab.value))
+/* 컬럼 정렬: 머리글을 누르면 오름차순 → 다시 누르면 내림차순 (처음엔 서버 순서) */
+const COLUMNS = [
+  { key: 'consult_status', label: '상담상태' },
+  { key: 'call_id', label: '통화 ID' },
+  { key: 'customer_id', label: '고객번호' },
+  { key: 'customer_name', label: '고객명' },
+  { key: 'agent_name', label: '상담사' },
+  { key: 'started_at', label: '통화 시작' },
+  { key: 'duration_sec', label: '통화 시간' },
+  { key: 'preview', label: '고객 첫 발화' },
+  { key: 'consult_id', label: '상담이력' },
+]
+const sort = ref({ key: '', dir: 'asc' })
+function sortBy(key) {
+  sort.value = sort.value.key === key ? { key, dir: sort.value.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }
+}
+function compare(a, b) {
+  if (a == null || a === '') return b == null || b === '' ? 0 : 1        // 빈 값은 항상 뒤로
+  if (b == null || b === '') return -1
+  if (typeof a === 'number' && typeof b === 'number') return a - b
+  return String(a).localeCompare(String(b), 'ko', { numeric: true })
+}
+
+const rows = computed(() => {
+  const list = all.value.filter((c) => !tab.value || c.consult_status === tab.value)
+  const { key, dir } = sort.value
+  if (!key) return list
+  const sign = dir === 'asc' ? 1 : -1
+  return [...list].sort((x, y) => {
+    const a = x[key], b = y[key]
+    if (a == null || a === '' || b == null || b === '') return compare(a, b)
+    return sign * compare(a, b)
+  })
+})
+const { page, pages, total, size, pageRows, reset } = usePager(rows)
+watch([tab, sort], reset)
 const counts = computed(() => ({
   '': all.value.length,
   진행: all.value.filter((c) => c.consult_status === '진행').length,
@@ -89,10 +126,16 @@ usePolling(load, 5000)   // 화면 진입 시 즉시 1회 + 5초마다
       <div class="tbl-wrap">
         <table class="tbl">
           <thead>
-            <tr><th>상담상태</th><th>통화 ID</th><th>고객번호</th><th>고객명</th><th>상담사</th><th>통화 시작</th><th>통화 시간</th><th>고객 첫 발화</th><th>상담이력</th></tr>
+            <tr>
+              <th v-for="col in COLUMNS" :key="col.key" class="sortable" :class="{ sorted: sort.key === col.key }"
+                  :aria-sort="sort.key === col.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'"
+                  @click="sortBy(col.key)">
+                {{ col.label }}<span class="arrow">{{ sort.key === col.key ? (sort.dir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+            </tr>
           </thead>
           <tbody>
-            <tr v-for="c in rows" :key="c.call_id" :class="{ 'on-air': c.consult_status === '진행' }" @click="open(c)">
+            <tr v-for="c in pageRows":key="c.call_id" :class="{ 'on-air': c.consult_status === '진행' }" @click="open(c)">
               <td class="nowrap">
                 <span v-if="c.consult_status === '진행'" class="badge badge-blue"><span class="dot pulse" /> 진행</span>
                 <span v-else class="badge badge-gray">상담완료</span>
@@ -113,6 +156,7 @@ usePolling(load, 5000)   // 화면 진입 시 즉시 1회 + 5초마다
         </table>
         <div v-if="!rows.length && !loading" class="empty">조회 기간에 {{ tab ? tab + ' 상태인 상담이 없습니다.' : '상담 내역이 없습니다.' }}</div>
       </div>
+      <ListPager v-model:page="page" :pages="pages" :total="total" :size="size" />
     </div>
   </div>
 </template>
@@ -128,4 +172,8 @@ usePolling(load, 5000)   // 화면 진입 시 즉시 1회 + 5초마다
 .go { font-size: 12.5px; font-weight: 600; color: var(--accent); }
 .tbl tbody tr.on-air td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .err { margin: 0; }
+.tbl th.sortable { cursor: pointer; user-select: none; }
+.tbl th.sortable:hover, .tbl th.sorted { color: var(--accent); }
+.tbl th .arrow { margin-left: 4px; font-size: 10px; opacity: .45; }
+.tbl th.sorted .arrow { opacity: 1; }
 </style>

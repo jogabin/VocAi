@@ -265,6 +265,11 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
            "p1_flow": ({k: flow.get(k) for k in ("route", "similar_type", "p1_candidate", "p1_path", "need_check")}
                        if flow else None),
            "criteria_version": cr.version, "criteria_source": cr.source, "applied_rules": applied,
+           # 상담이력등록 화면 판별 결과 팝업의 '등급별 처리 기준' (판별기준 조회 권한이 없는 상담사도 볼 수 있게)
+           "grade_guide": [{"code": g["grade_code"], "name": g.get("grade_name"), "definition": g.get("definition"),
+                            "notify_min_reports": g.get("notify_min_reports"), "observe": bool(g.get("observe_yn"))}
+                           for g in cr.grades],
+           "report_count": count, "customer_count": dd.get("customer_count", 1),
            "rag": {"method": rag_method, "count": len(similar), "in_llm": use_cases and source != "판별기준",
                    "ref_cases": refs}}
     ctx["severity"] = out

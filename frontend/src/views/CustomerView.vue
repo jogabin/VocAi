@@ -3,11 +3,14 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { fetchCustomers, createCustomer, updateCustomer } from '../api/adminApi'
 import { navigate } from '../composables/useHashRoute'
 import { fmtDateTime } from '../utils/format'
+import { usePager } from '../composables/usePager'
+import ListPager from '../components/voc/ListPager.vue'
 
 /* 고객정보 관리: 고객 목록 · 등록 · 수정 (고객번호 자동 채번)
    상담데이터 등록 화면에서 고객을 선택하는 기준 정보 */
 
 const rows = ref([])
+const { page, pages, total, size, pageRows } = usePager(rows)
 const loading = ref(false)
 const loadError = ref('')
 const filter = reactive({ keyword: '', gender: '' })
@@ -138,7 +141,7 @@ onMounted(load)
           <table class="tbl">
             <thead><tr><th>고객번호</th><th>고객명</th><th>핸드폰번호</th><th>성별</th><th>나이</th><th>최근 상담</th></tr></thead>
             <tbody>
-              <tr v-for="c in rows" :key="c.customer_id" :class="{ selected: editing.id === c.customer_id }" @click="openEdit(c)">
+              <tr v-for="c in pageRows" :key="c.customer_id" :class="{ selected: editing.id === c.customer_id }" @click="openEdit(c)">
                 <td class="mono">{{ c.customer_id }}</td>
                 <td class="nowrap"><strong>{{ c.customer_name }}</strong></td>
                 <td class="mono" :class="{ muted: !c.phone }">{{ c.phone || '미등록' }}</td>
@@ -150,6 +153,7 @@ onMounted(load)
           </table>
           <div v-if="!rows.length && !loading" class="empty">조회된 고객이 없습니다.</div>
         </div>
+        <ListPager v-model:page="page" :pages="pages" :total="total" :size="size" />
       </div>
 
       <div v-if="editing.mode" class="card form-card">

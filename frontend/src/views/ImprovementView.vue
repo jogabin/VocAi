@@ -3,6 +3,8 @@ import { computed, ref, watch } from 'vue'
 import { fetchImprovements } from '../api/vocApi'
 import { navigate } from '../composables/useHashRoute'
 import { fmtDate, fmtTime, incidentNo } from '../utils/format'
+import { usePager } from '../composables/usePager'
+import ListPager from '../components/voc/ListPager.vue'
 
 /* 개선의견 목록
    - 장애감지 에이전트가 '개선의견'(해결·완료된 건의 문구·안내·절차 개선 요청)으로 분류한 상담
@@ -11,6 +13,7 @@ import { fmtDate, fmtTime, incidentNo } from '../utils/format'
 const dateFrom = ref(fmtDate(new Date(), -29))
 const dateTo = ref(fmtDate())
 const list = ref([])
+const { page, pages, total, size, pageRows } = usePager(list)
 const error = ref('')
 const loading = ref(false)
 const opened = ref(null)
@@ -74,7 +77,7 @@ function toggle(o) {
             <tr><th>번호</th><th>등록</th><th>고객</th><th>오류유형 · 채널</th><th>상담요약</th><th>관련 장애</th></tr>
           </thead>
           <tbody>
-            <template v-for="o in list" :key="o.improvement_id">
+            <template v-for="o in pageRows" :key="o.improvement_id">
               <tr @click="toggle(o)">
                 <td class="mono">#{{ o.improvement_id }}</td>
                 <td class="nowrap muted">{{ fmtDate(o.created_at) }} {{ fmtTime(o.created_at) }}</td>
@@ -96,6 +99,7 @@ function toggle(o) {
         </table>
         <div v-if="!list.length" class="empty">{{ loading ? '불러오는 중…' : '해당 기간의 개선의견이 없습니다.' }}</div>
       </div>
+      <ListPager v-model:page="page" :pages="pages" :total="total" :size="size" />
     </section>
   </div>
 </template>

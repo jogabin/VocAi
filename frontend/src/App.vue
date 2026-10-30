@@ -61,6 +61,8 @@ function closeOnOutside(e) { if (!e.target.closest?.('.nav-group')) openGroup.va
 // 주소가 없거나 모르는 주소면 권한 있는 첫 화면 (IT담당자 → 장애 알림 모니터)
 const current = computed(() => MENUS.find((m) => m.path === path.value) || visibleMenus.value[0] || MENUS[0])
 const denied = computed(() => !auth.hasRole(current.value.roles))
+// 홈(상단 로고·제목): 상담현황. 상담현황 권한이 없으면(IT담당자 등) 권한 있는 첫 화면
+const homePath = computed(() => (auth.hasRole(ROLE_CONSULT) ? '/stt' : visibleMenus.value[0]?.path || '/stt'))
 
 // 사용자 이름 아래: 아이디 · 권한명
 const userLabel = computed(() => {
@@ -83,13 +85,13 @@ onMounted(() => {
   <template v-else>
     <header class="topbar">
       <div class="topbar-inner">
-        <div class="brand">
+        <a class="brand" :href="'#' + homePath" title="처음 화면으로">
           <img class="logo" :src="mascotIcon" alt="" width="40" height="40">
           <div>
             <strong>VOC 장애 알림 AI Agent</strong>
             <small>상담이력 기반 자율형 장애 감지 · 알림</small>
           </div>
-        </div>
+        </a>
         <nav>
           <template v-for="m in navItems" :key="m.path || m.group">
             <div v-if="m.children" class="nav-group" :class="{ open: openGroup === m.group }">
@@ -127,7 +129,9 @@ onMounted(() => {
 .boot { min-height: 100vh; display: grid; place-items: center; color: var(--text-3); font-size: 13px; }
 .topbar { background: #fff; color: var(--text); position: sticky; top: 0; z-index: 20; border-bottom: 1px solid #e5e8eb; }
 .topbar-inner { max-width: 1440px; margin: 0 auto; padding: 0 18px; height: 60px; display: flex; align-items: center; gap: 28px; }
-.brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; text-decoration: none; }
+.brand:hover { text-decoration: none; }
+.brand:hover strong { color: var(--accent); }
 .brand .logo { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; }
 .empty-mascot { width: 96px; height: 96px; object-fit: contain; margin-bottom: 6px; }   /* 빈 화면 · 권한 없음 안내 */
 .brand strong { display: block; font-size: 16px; font-weight: 800; color: var(--text); letter-spacing: -0.03em; }

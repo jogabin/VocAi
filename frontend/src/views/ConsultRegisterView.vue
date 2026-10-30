@@ -9,6 +9,7 @@ import ChatTranscript from '../components/voc/ChatTranscript.vue'
 import AgentTimeline from '../components/voc/AgentTimeline.vue'
 import AgentGraph from '../components/voc/AgentGraph.vue'
 import StatusBadge from '../components/voc/StatusBadge.vue'
+import RunResultModal from '../components/voc/RunResultModal.vue'
 
 /* 상담이력등록
    - STT 원문 대화 확인, 시스템관리자는 [원문대화 복사등록]으로 같은 대화를 상담데이터 등록(SCR-10) 화면에 채워 새 상담으로 등록
@@ -80,6 +81,8 @@ function fillFromConsult(c) {
 async function loadCall(id) {
   clearTimeout(pollTimer)
   run.value = null
+  resultFor = null
+  showResult.value = false
   submitError.value = ''
   callError.value = ''
   if (!id) { call.value = null; return }
@@ -144,12 +147,17 @@ let pollTimer = null
 
 const canSubmit = computed(() => !!call.value && !isDone.value && form.summary.trim().length >= 2 && !submitting.value && !drafting.value)
 
+/* 판별 결과 팝업: 이 화면에서 등록·재실행한 실행이 끝나면 자동으로 열고, 실행 결과 영역의 버튼으로 다시 열 수 있음 */
+const showResult = ref(false)
+let resultFor = null                                     // 끝나면 팝업을 열 run_id
+
 async function pollRun(runId) {
   clearTimeout(pollTimer)
   try {
     const r = await fetchAgentRun(runId)
     run.value = r
     if (r.status === 'RUNNING') pollTimer = setTimeout(() => pollRun(runId), 1000)
+    else if (resultFor === r.run_id) { resultFor = null; showResult.value = true }
   } catch {
     pollTimer = setTimeout(() => pollRun(runId), 2000)
   }
@@ -171,6 +179,7 @@ async function submit() {
     call.value.consult = { ...res.consult, run_id: res.run_id }
     call.value.consult_status = '상담완료'
     run.value = { run_id: res.run_id, status: 'RUNNING', steps: [] }
+    resultFor = res.run_id
     if (res.run_id) pollRun(res.run_id)
     nextTick(() => graphCard.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   } catch (e) {
@@ -184,6 +193,7 @@ async function rerun() {
   if (!consult.value) return
   const { run_id } = await rerunAgent(consult.value.consult_id)
   run.value = { run_id, status: 'RUNNING', steps: [] }
+  resultFor = run_id
   pollRun(run_id)
 }
 
@@ -313,15 +323,21 @@ onBeforeUnmount(() => clearTimeout(pollTimer))
             <AgentTimeline :run="run" />
             <div v-if="run.status !== 'RUNNING'" class="run-foot">
               <span class="muted">{{ run.llm_used ? 'LLM(Claude) 분석 사용' : '규칙 기반 분석 (LLM 미사용/실패)' }}</span>
-              <button v-if="run.incident_id" class="btn btn-sm" @click="navigate('/incident', { id: run.incident_id })">
-                장애 {{ incidentNo(run.incident_id) }} 상세 보기 →
-              </button>
+              <span class="foot-actions">
+                <button class="btn btn-sm" @click="showResult = true">판별 결과 보기</button>
+                <button v-if="run.incident_id" class="btn btn-sm" @click="navigate('/incident', { id: run.incident_id })">
+                  장애 {{ incidentNo(run.incident_id) }} 상세 보기 →
+                </button>
+              </span>
             </div>
           </div>
           <p v-else class="muted hint-run">상담이력을 등록하면 장애감지 → 중복제보 통합 → 심각도 판별 → 메신저 전송 순서로 실행되며, 실행 중인 단계가 그래프에 표시됩니다.</p>
         </div>
       </section>
     </template>
+
+    <RunResultModal v-if="showResult && run && run.status !== 'RUNNING'" :run="run"
+                    @close="showResult = false" @open-incident="(id) => navigate('/incident', { id })" />
   </div>
 </template>
 
@@ -343,6 +359,7 @@ onBeforeUnmount(() => clearTimeout(pollTimer))
 .run-detail { margin-top: 16px; }
 .run-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; margin-top: 4px; flex-wrap: wrap; }
 .hint-run { margin: 12px 0 0; font-size: 12.5px; }
+.foot-actions { display: flex; gap: 6px; }
 .empty p { margin: 0 0 12px; }
 .err { margin: 0 0 10px; }
 </style>

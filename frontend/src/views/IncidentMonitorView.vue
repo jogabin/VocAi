@@ -7,6 +7,8 @@ import { fmtDate, fmtTime, timeAgo, incidentNo, PROCESS_BADGE } from '../utils/f
 import mascot from '../assets/mascot.png'
 import SeverityBadge from '../components/voc/SeverityBadge.vue'
 import StatusBadge from '../components/voc/StatusBadge.vue'
+import { usePager } from '../composables/usePager'
+import ListPager from '../components/voc/ListPager.vue'
 
 /* 장애 알림 모니터
    - 상단 건수 박스 5개 (긴급 장애가 있으면 깜빡임)
@@ -45,6 +47,8 @@ const counts = ref(null)
 const summary = ref(null)
 const list = ref([])
 const runs = ref([])
+const { page, pages, total, size, pageRows, reset } = usePager(list)
+watch(box, reset)
 const error = ref('')
 const updatedAt = ref(null)
 
@@ -167,7 +171,7 @@ const ragLabel = computed(() => {
             <tr><th>장애번호</th><th>등급</th><th>처리상태</th><th>장애 제목</th><th>오류유형 · 채널</th><th>누적 제보</th><th>담당자</th><th>메신저</th><th>최근 제보</th></tr>
           </thead>
           <tbody>
-            <tr v-for="i in list" :key="i.incident_id" @click="openIncident(i)">
+            <tr v-for="i in pageRows" :key="i.incident_id" @click="openIncident(i)">
               <td class="mono" style="white-space: nowrap">{{ incidentNo(i.incident_id) }}</td>
               <td><SeverityBadge :value="i.severity" /></td>
               <td><span class="badge" :class="PROCESS_BADGE[i.process_status]">{{ i.process_status }}</span></td>
@@ -187,6 +191,7 @@ const ragLabel = computed(() => {
           <img class="empty-mascot" :src="mascot" alt="" width="96" height="96"><br>해당하는 장애가 없습니다.
         </div>
       </div>
+      <ListPager v-model:page="page" :pages="pages" :total="total" :size="size" />
     </section>
 
     <!-- ============ 에이전트 실행 현황 ============ -->

@@ -3,6 +3,8 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { fetchEmployees, fetchEmployee, createEmployee, updateEmployee } from '../api/adminApi'
 import { fetchTelegramChats } from '../api/vocApi'
 import { useAuth } from '../composables/useAuth'
+import { usePager } from '../composables/usePager'
+import ListPager from '../components/voc/ListPager.vue'
 
 /* 인사정보 관리: 상담사 / 센터관리자 / IT담당자.
    IT담당자의 알림 역할·담당 오류유형은 장애 알림 수신자 식별에 사용됩니다. */
@@ -47,6 +49,8 @@ const counts = computed(() => {
   return c
 })
 
+const { page, pages, total, size, pageRows, reset } = usePager(rows)
+watch([keyword, showInactive], reset)
 async function load() {
   loading.value = true
   loadError.value = ''
@@ -221,7 +225,7 @@ onMounted(load)
               <tr><th>사번</th><th>이름</th><th>그룹</th><th>부서 · 직급</th><th>업무담당</th><th>메신저 ID</th><th>근무</th></tr>
             </thead>
             <tbody>
-              <tr v-for="e in rows" :key="e.emp_id" :class="{ selected: editing.id === e.emp_id, off: !e.use_yn }" @click="openEdit(e)">
+              <tr v-for="e in pageRows" :key="e.emp_id" :class="{ selected: editing.id === e.emp_id, off: !e.use_yn }" @click="openEdit(e)">
                 <td class="mono">{{ e.emp_no }}</td>
                 <td class="nowrap"><strong>{{ e.emp_name }}</strong></td>
                 <td><span class="badge" :class="GROUP_BADGE[e.emp_group]">{{ e.emp_group }}</span></td>
@@ -243,6 +247,7 @@ onMounted(load)
           </table>
           <div v-if="!rows.length && !loading" class="empty">조회된 직원이 없습니다.</div>
         </div>
+        <ListPager v-model:page="page" :pages="pages" :total="total" :size="size" />
       </div>
 
       <div v-if="editing.mode" class="card form-card">

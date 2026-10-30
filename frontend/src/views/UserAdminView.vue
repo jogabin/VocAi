@@ -3,6 +3,8 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { fetchUsers, createUser, updateUser, fetchEmployees } from '../api/adminApi'
 import { useAuth, ROLES } from '../composables/useAuth'
 import { fmtDateTime } from '../utils/format'
+import { usePager } from '../composables/usePager'
+import ListPager from '../components/voc/ListPager.vue'
 
 /* 사용자관리: VOC 장애 관리 시스템 로그인 사용자
    권한 4종 — 상담사 / 센터관리자 / IT담당자 / 시스템관리자 (화면 설계서 SCR-01~10) */
@@ -16,6 +18,7 @@ const ROLE_DESC = {
 
 const auth = useAuth()
 const users = ref([])
+const { page, pages, total, size, pageRows } = usePager(users)
 const employees = ref([])
 const loading = ref(false)
 const loadError = ref('')
@@ -205,7 +208,7 @@ onMounted(() => { load(); loadEmployees() })
               <tr><th>아이디</th><th>이름</th><th>권한</th><th>연결 직원</th><th>상태</th><th>최근 로그인</th></tr>
             </thead>
             <tbody>
-              <tr v-for="u in users" :key="u.user_id" :class="{ selected: editing.id === u.user_id, off: !u.use_yn }" @click="openEdit(u)">
+              <tr v-for="u in pageRows" :key="u.user_id" :class="{ selected: editing.id === u.user_id, off: !u.use_yn }" @click="openEdit(u)">
                 <td class="mono">{{ u.login_id }}</td>
                 <td class="nowrap"><strong>{{ u.user_name }}</strong><span v-if="u.user_id === auth.state.user?.user_id" class="badge badge-blue me">나</span></td>
                 <td><span class="badge" :class="ROLE_BADGE[u.auth_role] || 'badge-gray'">{{ u.auth_role }}</span></td>
@@ -220,6 +223,7 @@ onMounted(() => { load(); loadEmployees() })
           </table>
           <div v-if="!users.length && !loading" class="empty">조회된 사용자가 없습니다.</div>
         </div>
+        <ListPager v-model:page="page" :pages="pages" :total="total" :size="size" />
       </div>
 
       <div v-if="editing.mode" class="card form-card">
