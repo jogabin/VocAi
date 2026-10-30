@@ -21,7 +21,7 @@
 > Stop praying, start planning. (기도 금지, 설계 시작)
 
 팀은 AI에게 결과만 바라고 기다리지 않고, 요건과 설계를 사람이 먼저 정한 뒤 AI가 돕게 하는 방식(SDD)을 정했습니다.  
-이 저장소의 앱 코드(`backend/`, `frontend/`)는 개발 담당이 따로 만들었고, 이 문서대로 만든 것은 아닙니다. 개발 에이전트 4개(인터뷰, 요건정리, 아키텍처, 디자인)는 요건과 설계 문서를 만드는 데 썼습니다. 요건 가운데 코드가 무엇을 하는지는 [요건 대비 구현 현황](docs/requirements/vocai-status.md)에, 이렇게 된 사정은 [ADR-010](docs/adr/ADR-010-submission-implementation.md)에 있습니다.  
+이 저장소의 앱 코드(`backend/`, `frontend/`)는 개발 담당이 따로 만들었고, 이 문서대로 만든 것은 아닙니다. 개발 에이전트 4개(인터뷰, 요건정리, 아키텍처, 디자인)는 요건과 설계 문서를 만드는 데 썼습니다. 제출 코드는 이 요건에 대조해 검증했습니다. [요건 대비 구현 현황](docs/requirements/vocai-status.md)은 요건 93개마다 구현 여부와 근거 파일을 추적한 표로, SDD 흐름의 검증 단계 산출물입니다. 코드에 없는 요건은 지우지 않고 향후 과제로 나눴습니다([ADR-011](docs/adr/ADR-011-future-work-scope.md)). 이렇게 된 사정은 [ADR-010](docs/adr/ADR-010-submission-implementation.md)에 있습니다.  
 흐름과 개발 에이전트는 [SDD 한눈에 보기](docs/guide/sdd.md)에, 왜 그렇게 정했는지는 [ADR-002](docs/adr/ADR-002-dev-flow-and-agents.md)에 있습니다.
 
 ## 폴더 구조
