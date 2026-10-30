@@ -26,19 +26,12 @@ CREATE INDEX IF NOT EXISTS ix_customer_name ON customer(customer_name);
 ALTER TABLE stt_call ADD COLUMN IF NOT EXISTS agent_emp_id INTEGER REFERENCES employee(emp_id) ON DELETE SET NULL;
 ALTER TABLE stt_call ADD COLUMN IF NOT EXISTS created_by   VARCHAR(50);          -- 상담데이터 등록 화면에서 만든 경우 등록자
 
--- 시연 데이터 고객 (기존 STT 통화 10건의 고객)
+-- 시연 데이터 고객 (02_seed.sql 상담현황 통화 3건의 고객)
 INSERT INTO customer (customer_id, customer_name, phone, gender, age)
 SELECT * FROM (VALUES
  ('CUST-10231', '김민수', '010-2381-4402', '남', 34),
- ('CUST-20877', '이영희', '010-5521-0937', '여', 41),
- ('CUST-31502', '박준호', '010-7712-3348', '남', 29),
- ('CUST-40119', '최서연', '010-9034-2215', '여', 37),
- ('CUST-55210', '정다은', '010-4418-7720', '여', 52),
  ('CUST-61733', '한지민', '010-3392-1184', '여', 26),
- ('CUST-72048', '윤성호', '010-6620-4471', '남', 45),
- ('CUST-80562', '강미래', '010-2275-9013', '여', 33),
- ('CUST-91204', '오태양', '010-8841-3306', '남', 58),
- ('CUST-93377', '서하늘', '010-5507-6629', '여', 22)
+ ('CUST-71001', '한도윤', NULL, '남', 36)
 ) AS v(customer_id, customer_name, phone, gender, age)
 WHERE NOT EXISTS (SELECT 1 FROM customer c WHERE c.customer_id = v.customer_id);
 
