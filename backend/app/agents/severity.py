@@ -137,14 +137,14 @@ def _apply_adjust_rules(cr, det: dict, dd: dict, text: str, sev: str, count: int
 def _apply_p1_flow(cr, flow: dict, dd: dict, sev: str, reasons: list, applied: list) -> str:
     """장애감지 단계 판정을 등급에 반영.
     cap: 이 등급보다 심각하면 낮춤(P1 아님). 대규모 신호나 기존 장애에 통합된 건은 낮추지 않음.
-    floor: 최소 이 등급(장애 후보는 P2 관찰)."""
+    floor: 최소 이 등급(장애 후보는 P2 관찰). 일시 실패 후 정상 진행이 확인된 건(최대 P3 규칙)에는 적용하지 않음."""
     if not flow:
         return sev
     before = sev
     cap, floor = flow.get("cap"), flow.get("floor")
     if cap and not dd.get("mass_signal") and not dd.get("merged") and sev != cap and cr.max(sev, cap) == sev:
         sev = cap
-    if floor:
+    if floor and not dd.get("recovered"):
         sev = cr.max(sev, floor)
     if sev != before:
         applied.append("P1FLOW")
