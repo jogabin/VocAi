@@ -426,9 +426,10 @@ class RerunIn(BaseModel):
     consult_id: int
 
 
-@router.get("/agent-runs", summary="에이전트 실행 이력 (단계 포함)")
-def list_runs(db: DB, limit: int = Query(20, ge=1, le=100)):
-    return repo.list_runs(db, limit)
+@router.get("/agent-runs", summary="에이전트 실행 이력 (실행일 date_from~date_to, steps=false 면 단계 생략)")
+def list_runs(db: DB, date_from: date | None = None, date_to: date | None = None, steps: bool = True,
+              limit: int = Query(20, ge=1, le=300)):
+    return repo.list_runs(db, limit, date_from, date_to, steps)
 
 
 @router.get("/agent-runs/{run_id}", summary="에이전트 실행 단건")

@@ -100,8 +100,14 @@ export async function fetchMessengerLogs({ incidentId, limit = 50 } = {}) {
 }
 
 /* ---------- 에이전트 실행 이력 / 모니터 ---------- */
-export async function fetchAgentRuns(limit = 20) {
-  const { data } = await http.get('/agent-runs', { params: { limit } })
+// 숫자만 넘기면 최근 N건(단계 포함). 객체로 넘기면 실행일 기간 · 단계 생략 가능
+export async function fetchAgentRuns(opts = 20) {
+  const { limit = 20, dateFrom, dateTo, steps } = typeof opts === 'number' ? { limit: opts } : opts
+  const params = { limit }
+  if (dateFrom) params.date_from = dateFrom
+  if (dateTo) params.date_to = dateTo
+  if (steps === false) params.steps = false
+  const { data } = await http.get('/agent-runs', { params })
   return data
 }
 

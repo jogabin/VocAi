@@ -529,13 +529,18 @@ def _attach_steps(db: Session, runs: list[dict]) -> list[dict]:
     return runs
 
 
-def list_runs(db: Session, limit: int = 20) -> list[dict]:
-    runs = _rows(db.execute(text("""
+def list_runs(db: Session, limit: int = 20, date_from=None, date_to=None, with_steps: bool = True) -> list[dict]:
+    """에이전트 실행 이력 (최신순). date_from~date_to: 실행 시작일(한국 날짜). with_steps=False 면 단계 생략(목록용)."""
+    conds, params = [], {"limit": limit}
+    _date_conds("r.started_at", date_from, date_to, conds, params)
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    runs = _rows(db.execute(text(f"""
         SELECT r.*, h.customer_name, h.call_id, h.summary, h.channel
           FROM agent_run r LEFT JOIN consult_history h ON h.consult_id = r.consult_id
+          {where}
          ORDER BY r.run_id DESC LIMIT :limit
-    """), {"limit": limit}))
-    return _attach_steps(db, runs)
+    """), params))
+    return _attach_steps(db, runs) if with_steps else runs
 
 
 def get_run(db: Session, run_id: int) -> dict | None:

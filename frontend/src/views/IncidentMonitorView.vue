@@ -53,8 +53,9 @@ const summary = ref(null)
 const list = ref([])
 const runs = ref([])
 const { page, pages, total, size, pageRows, reset } = usePager(list)
+const { page: runPage, pages: runPages, total: runTotal, size: runSize, pageRows: runRows, reset: resetRuns } = usePager(runs)
 const samePlace = saved.box === box.value && saved.dateFrom === dateFrom.value && saved.dateTo === dateTo.value
-keepListState('monitor', { box, dateFrom, dateTo, page }, samePlace ? ['page'] : [])
+keepListState('monitor', { box, dateFrom, dateTo, page, runPage }, samePlace ? ['page', 'runPage'] : [])
 watch(box, reset)
 const error = ref('')
 const updatedAt = ref(null)
@@ -78,7 +79,7 @@ async function refresh() {
       fetchMonitorCounts(range),
       fetchIncidents({ box: box.value, ...range, limit: 200 }),
       fetchMonitorSummary(),
-      fetchAgentRuns(8),
+      fetchAgentRuns({ ...range, limit: 300, steps: false }),   // 하단 에이전트 실행도 같은 조회 기간
     ])
     counts.value = c
     list.value = l
@@ -101,6 +102,7 @@ watch([box, dateFrom, dateTo], () => {
   list.value = []
   refreshNow()
 })
+watch([dateFrom, dateTo], resetRuns)   // 에이전트 실행 목록은 박스와 상관없이 기간이 바뀔 때만 첫 페이지로
 
 // 주소(#/monitor?box=..&from=..&to=..)로 바뀐 경우에도 박스·기간 반영
 watch(() => [query.value.box, query.value.from, query.value.to], ([b, f, t]) => {
@@ -210,23 +212,24 @@ const ragLabel = computed(() => {
     <!-- ============ 에이전트 실행 현황 ============ -->
     <section class="card">
       <div class="card-head">
-        <h3>최근 에이전트 실행 <span class="sub">상담이력 등록 시 자동 실행</span></h3>
+        <h3>에이전트 실행 <span class="sub">{{ runTotal }}건 · {{ rangeLabel }} · 상담이력 등록 시 자동 실행</span></h3>
       </div>
       <div class="tbl-wrap">
         <table class="tbl">
           <thead><tr><th>실행</th><th>시각</th><th>고객</th><th>상태</th><th>결과</th></tr></thead>
           <tbody>
-            <tr v-for="r in runs" :key="r.run_id" @click="r.call_id && navigate('/consult', { call: r.call_id })">
+            <tr v-for="r in runRows" :key="r.run_id" @click="r.call_id && navigate('/consult', { call: r.call_id })">
               <td class="mono">#{{ r.run_id }}</td>
-              <td class="nowrap muted">{{ fmtTime(r.started_at) }}</td>
+              <td class="nowrap muted">{{ fmtDate(r.started_at) }} {{ fmtTime(r.started_at) }}</td>
               <td class="nowrap">{{ r.customer_name || '-' }} <span class="mono muted small">{{ r.call_id }}</span></td>
               <td><StatusBadge :value="r.status" /></td>
               <td class="wrap muted">{{ r.outcome || '실행 중…' }}</td>
             </tr>
           </tbody>
         </table>
-        <div v-if="!runs.length" class="empty">실행 이력이 없습니다.</div>
+        <div v-if="!runs.length" class="empty">조회 기간에 실행 이력이 없습니다.</div>
       </div>
+      <ListPager v-model:page="runPage" :pages="runPages" :total="runTotal" :size="runSize" />
     </section>
   </div>
 </template>
