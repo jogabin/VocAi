@@ -122,8 +122,8 @@ usePolling(load, 5000)   // 화면 진입 시 즉시 1회 + 5초마다
 .live .dot { color: var(--ok); }
 .badge .dot { width: 6px; height: 6px; }
 .dates { display: inline-flex; align-items: center; gap: 6px; }
-.dates input { padding: 5px 8px; }
-.btn-done { color: var(--ok); border-color: var(--ok); background: var(--ok-soft); font-weight: 600; }
+.dates input { padding: 5px 10px; }
+.btn-done { color: var(--ok); background: var(--ok-soft); font-weight: 600; }
 .btn-done:hover:not(:disabled) { background: var(--ok-soft); filter: brightness(0.96); }
 .go { font-size: 12.5px; font-weight: 600; color: var(--accent); }
 .tbl tbody tr.on-air td:first-child { box-shadow: inset 3px 0 0 var(--accent); }

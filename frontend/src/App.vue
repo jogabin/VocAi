@@ -125,32 +125,31 @@ onMounted(() => {
 
 <style>
 .boot { min-height: 100vh; display: grid; place-items: center; color: var(--text-3); font-size: 13px; }
-.topbar { background: #fff; color: var(--text); position: sticky; top: 0; z-index: 20; border-bottom: 1px solid var(--line); box-shadow: 0 2px 6px rgba(0, 0, 0, .04); }
-.topbar-inner { max-width: 1440px; margin: 0 auto; padding: 0 24px; height: 68px; display: flex; align-items: center; gap: 36px; }
+.topbar { background: #fff; color: var(--text); position: sticky; top: 0; z-index: 20; border-bottom: 1px solid #e5e8eb; }
+.topbar-inner { max-width: 1440px; margin: 0 auto; padding: 0 18px; height: 60px; display: flex; align-items: center; gap: 28px; }
 .brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.brand .logo { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
+.brand .logo { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; }
 .empty-mascot { width: 96px; height: 96px; object-fit: contain; margin-bottom: 6px; }   /* 빈 화면 · 권한 없음 안내 */
-.brand strong { display: block; font-size: 16px; color: var(--navy); letter-spacing: -0.03em; }
+.brand strong { display: block; font-size: 16px; font-weight: 800; color: var(--text); letter-spacing: -0.03em; }
 .brand small { display: block; font-size: 11px; color: var(--text-3); }
-.topbar nav { display: flex; gap: 4px; height: 100%; min-width: 0; }
-.topbar nav > a, .nav-group > button { color: #333; font: inherit; background: none; cursor: pointer; height: 100%; display: flex; align-items: center; padding: 0 14px; font-weight: 700; font-size: 15px; letter-spacing: -0.02em; border-bottom: 3px solid transparent; border-top: 3px solid transparent; text-decoration: none; white-space: nowrap; }
-.topbar nav > a:hover, .nav-group > button:hover { color: var(--accent); }
-.topbar nav > a.on, .nav-group > button.on { color: var(--accent); border-bottom-color: var(--accent); }
-.topbar nav > a, .nav-group > button { border-left: 0; border-right: 0; }
-.nav-group { position: relative; height: 100%; }
+.topbar nav { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.topbar nav > a, .nav-group > button { color: var(--text-2); font: inherit; background: none; cursor: pointer; height: 36px; display: flex; align-items: center; padding: 0 14px; font-weight: 700; font-size: 13.5px; letter-spacing: -0.02em; border: 0; border-radius: var(--radius); text-decoration: none; white-space: nowrap; }
+.topbar nav > a:hover, .nav-group > button:hover { background: var(--line); color: var(--text); text-decoration: none; }
+.topbar nav > a.on, .nav-group > button.on { background: var(--accent-soft); color: var(--accent); }
+.nav-group { position: relative; }
 .nav-group .caret { font-size: 10px; margin-left: 4px; }
-.nav-menu { position: absolute; top: 100%; left: 0; min-width: 160px; background: #fff; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 6px 16px rgba(0, 0, 0, .08); padding: 4px 0; z-index: 30; }
-.nav-menu a { display: block; padding: 9px 16px; font-size: 14px; font-weight: 600; color: #333; text-decoration: none; white-space: nowrap; }
-.nav-menu a:hover { background: var(--surface-2); color: var(--accent); }
-.nav-menu a.on { color: var(--accent); }
+.nav-menu { position: absolute; top: calc(100% + 6px); left: 0; min-width: 160px; background: #fff; border: 1px solid #e5e8eb; border-radius: 12px; box-shadow: 0 6px 18px rgba(25, 31, 40, .10); padding: 6px; z-index: 30; }
+.nav-menu a { display: block; padding: 9px 12px; border-radius: 9px; font-size: 13.5px; font-weight: 600; color: var(--text-2); text-decoration: none; white-space: nowrap; }
+.nav-menu a:hover { background: var(--line); color: var(--text); }
+.nav-menu a.on { background: var(--accent-soft); color: var(--accent); }
 .topbar .user { margin-left: auto; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .topbar .who { text-align: right; line-height: 1.3; }
-.topbar .who strong { display: block; font-size: 13px; color: #222; }
+.topbar .who strong { display: block; font-size: 13px; color: var(--text); }
 .topbar .who small { display: block; font-size: 11px; color: var(--text-3); }
-.topbar .logout { font: inherit; font-size: 12px; font-weight: 600; color: var(--text-2); background: #fff; border: 1px solid var(--line-strong); border-radius: 3px; padding: 4px 9px; cursor: pointer; }
-.topbar .logout:hover { color: var(--accent); border-color: var(--accent); }
-@media (max-width: 1400px) { .brand small { display: none; } .topbar-inner { gap: 16px; } .topbar nav > a, .nav-group > button { padding: 0 10px; font-size: 14px; } }
+.topbar .logout { font: inherit; font-size: 12px; font-weight: 600; color: var(--text-2); background: var(--line); border: 0; border-radius: var(--radius-badge); padding: 7px 12px; cursor: pointer; }
+.topbar .logout:hover { color: var(--accent); background: var(--accent-soft); }
+@media (max-width: 1400px) { .brand small { display: none; } .topbar-inner { gap: 16px; } .topbar nav > a, .nav-group > button { padding: 0 10px; font-size: 13px; } }
 @media (max-width: 1100px) { .brand div { display: none; } }
-@media (max-width: 900px) { .topbar-inner { gap: 8px; } .topbar nav > a, .nav-group > button { padding: 0 8px; font-size: 13px; } }
+@media (max-width: 900px) { .topbar-inner { gap: 8px; } .topbar nav > a, .nav-group > button { padding: 0 8px; font-size: 12.5px; } }
 @media (max-width: 760px) { .brand div { display: none; } .topbar .who { display: none; } .topbar-inner { padding: 0 12px; gap: 8px; height: 56px; } .topbar nav { overflow-x: auto; scrollbar-width: none; } .topbar nav > a, .nav-group > button { padding: 0 8px; font-size: 13px; } .nav-menu { position: fixed; top: 56px; left: auto; right: 12px; } }
 </style>

@@ -215,33 +215,27 @@ const ragLabel = computed(() => {
 
 <style scoped>
 .small { font-size: 12px; }
-.mon-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.mon-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 10px 12px; flex-wrap: wrap; }
 .dates { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .dates-label { font-size: 13px; font-weight: 600; color: var(--text-2); margin-right: 2px; }
-.dates input { padding: 5px 8px; }
+.dates input { padding: 5px 10px; }
 
-.boxes { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.boxes { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
 @media (max-width: 1100px) { .boxes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .boxes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.box { --c: var(--accent); --soft: var(--accent-soft); font: inherit; text-align: left; cursor: pointer; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 4px; position: relative; overflow: hidden; transition: border-color .15s, box-shadow .15s, transform .1s; }
-.box::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c); }
-.box:hover { border-color: var(--line-strong); transform: translateY(-1px); }
-.box.on { border-color: var(--c); box-shadow: 0 0 0 2px var(--soft), var(--shadow); }
-.box-label { font-size: 13px; font-weight: 700; color: var(--text-2); }
-.box-num { font-size: 34px; font-weight: 800; line-height: 1.1; color: var(--c); letter-spacing: -0.02em; }
-.box-num small { font-size: 14px; font-weight: 600; margin-left: 3px; color: var(--text-3); }
+.box { font: inherit; text-align: left; cursor: pointer; background: var(--surface); border: 0; border-radius: var(--radius-card); padding: 16px 18px 14px; box-shadow: none; display: flex; flex-direction: column; gap: 4px; position: relative; overflow: hidden; transition: background .15s; }
+.box:hover { background: var(--surface-2); }
+.box.on { background: var(--accent-soft); }
+.box-label { font-size: 12.5px; font-weight: 600; color: var(--text-3); }
+.box-num { font-size: 26px; font-weight: 800; line-height: 1.15; color: var(--text); letter-spacing: -0.02em; }
+.box-num small { font-size: 13px; font-weight: 600; margin-left: 3px; color: var(--text-3); }
 .box-desc { font-size: 11.5px; color: var(--text-3); }
-.box-registered { --c: var(--accent); --soft: var(--accent-soft); }
-.box-urgent { --c: var(--p1); --soft: var(--p1-soft); }
-.box-observing { --c: var(--accent); --soft: var(--accent-soft); }
-.box-messaged { --c: var(--navy); --soft: var(--navy-soft); }
-.box-same_type { --c: var(--p2); --soft: var(--p2-soft); }
-.box-resolved { --c: var(--ok); --soft: var(--ok-soft); }
-.box.blink { animation: urgent-blink 1s ease-in-out infinite; border-color: var(--p1); }
+.box.on .box-num { color: var(--accent); }
+.box.blink { animation: urgent-blink 1s ease-in-out infinite; }
 .box.blink .box-num { color: var(--p1); }
 @keyframes urgent-blink {
-  0%, 100% { background: var(--surface); box-shadow: 0 0 0 0 rgba(217, 45, 32, 0); }
-  50% { background: var(--p1-soft); box-shadow: 0 0 0 4px rgba(217, 45, 32, .25); }
+  0%, 100% { background: var(--surface); }
+  50% { background: var(--p1-soft); }
 }
 @media (prefers-reduced-motion: reduce) { .box.blink { animation: none; background: var(--p1-soft); } }
 </style>

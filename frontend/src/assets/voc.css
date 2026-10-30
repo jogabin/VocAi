@@ -1,37 +1,47 @@
 /* =====================================================================
    VOC 장애 알림 AI Agent - 공통 스타일
+   모양: 옅은 회색 바탕 위에 흰 둥근 판, 알약 메뉴, 파랑 강조 (콜록 홈즈 화면 규칙 안 C)
+   이 파일은 모양(CSS)만 다룹니다. 화면 구조와 동작은 각 .vue 파일에 있습니다.
    ===================================================================== */
 :root {
-  /* 전북은행 인터넷뱅킹 톤: 흰 헤더 · 하늘색 포인트 · 연회색 바탕 · 얇은 회색 선 */
-  --bg: #f2f4f6;
+  /* 바탕과 판 */
+  --bg: #edf1f3;
   --surface: #ffffff;
-  --surface-2: #f7f8fa;
-  --line: #e2e2e2;
-  --line-strong: #d3d3d3;
-  --text: #333333;
-  --text-2: #585858;
-  --text-3: #888888;
-  --navy: #0b3a7e;
-  --navy-soft: #e7eef8;
-  --accent: #139cd8;
-  --accent-strong: #0b82b8;
-  --accent-soft: #ebf7ff;
-  --point: #f0503c;
-  --ok: #138a52;
-  --ok-soft: #e3f5ec;
-  --warn: #b26a00;
-  --warn-soft: #fff3df;
-  --p1: #d92d20;
-  --p1-soft: #fde8e7;
-  --p2: #e8590c;
-  --p2-soft: #fff0e6;
-  --p3: #b88a00;
+  --surface-2: #f9fafb;
+  /* 선: --line 은 판 안의 옅은 구분선, --line-strong 은 버튼·구분용, --line-input 은 입력 칸 테두리 */
+  --line: #f2f4f6;
+  --line-strong: #e1e5ea;
+  --line-input: #8b95a1;
+  /* 글자 (흰 바탕에서 4.5:1 이상) */
+  --text: #191f28;
+  --text-2: #4e5968;
+  --text-3: #6b7684;
+  --navy: #3b4a63;
+  --navy-soft: #eef1f6;
+  /* 강조 */
+  --accent: #1b64da;
+  --accent-strong: #1957c2;
+  --accent-soft: #e8f3ff;
+  --point: #d3202f;
+  --ok: #0f7b4a;
+  --ok-soft: #e6f6ee;
+  --warn: #a35a00;
+  --warn-soft: #fff3e0;
+  /* 등급: 글자와 바탕 (P3 는 노랑을 유지) */
+  --p1: #d3202f;
+  --p1-soft: #fdecee;
+  --p2: #a35a00;
+  --p2-soft: #fff3e0;
+  --p3: #8a6500;
   --p3-soft: #fff8db;
-  --p4: #667085;
-  --p4-soft: #eef0f3;
-  --radius: 6px;
-  --shadow: 0 1px 2px rgba(0, 0, 0, .03);
-  --font: "Pretendard", "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --p4: #5b6573;
+  --p4-soft: #f2f4f6;
+  /* 모서리: 판 16, 버튼·입력 11, 배지 9 */
+  --radius: 11px;
+  --radius-card: 16px;
+  --radius-badge: 9px;
+  --shadow: none;
+  --font: "Pretendard Variable", "Pretendard", "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
   --mono: "JetBrains Mono", "D2Coding", Consolas, monospace;
 }
 
@@ -51,21 +61,20 @@ a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 /* ---------- 레이아웃 ---------- */
-.page { max-width: 1440px; margin: 0 auto; padding: 28px 24px 48px; }
-.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 2px solid var(--text); flex-wrap: wrap; }
-.page-head h2 { font-size: 24px; color: #222; letter-spacing: -0.03em; }
-.page-head p { margin: 6px 0 0; color: var(--text-2); font-size: 13px; }
-.grid-2 { display: grid; grid-template-columns: minmax(360px, 5fr) 7fr; gap: 16px; align-items: start; }
-.grid-monitor { display: grid; grid-template-columns: minmax(340px, 4fr) 8fr; gap: 16px; align-items: start; }
+.page { max-width: 1440px; margin: 0 auto; padding: 18px 10px 40px; }
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 14px; padding: 0 10px; flex-wrap: wrap; }
+.page-head h2 { font-size: 21px; font-weight: 800; color: var(--text); letter-spacing: -0.03em; }
+.page-head p { margin: 6px 0 0; color: var(--text-3); font-size: 13px; }
+.grid-2 { display: grid; grid-template-columns: minmax(380px, 6fr) 6fr; gap: 10px; align-items: start; }
+.grid-monitor { display: grid; grid-template-columns: minmax(340px, 4fr) 8fr; gap: 10px; align-items: start; }
 @media (max-width: 1080px) { .grid-2, .grid-monitor { grid-template-columns: 1fr; } }
 
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
-.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
-.card-head h3 { font-size: 15px; color: #222; letter-spacing: -0.02em; display: flex; align-items: center; }
-.card-head h3::before { content: ""; width: 4px; height: 14px; border-radius: 2px; background: var(--accent); margin-right: 8px; flex-shrink: 0; }
-.card-head .sub { color: var(--text-3); font-size: 12px; font-weight: 500; margin-left: 6px; }
-.card-body { padding: 18px; }
-.card + .card { margin-top: 16px; }
+.card { background: var(--surface); border: 0; border-radius: var(--radius-card); box-shadow: var(--shadow); overflow: hidden; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 16px 22px 8px; border-bottom: 0; }
+.card-head h3 { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; display: flex; align-items: center; }
+.card-head .sub { color: var(--text-3); font-size: 12px; font-weight: 500; margin-left: 8px; }
+.card-body { padding: 10px 22px 20px; }
+.card + .card { margin-top: 10px; }
 .scroll { overflow-y: auto; }
 
 /* ---------- 폼 ---------- */
@@ -75,44 +84,48 @@ a:hover { text-decoration: underline; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 input, select, textarea {
   font: inherit; color: var(--text);
-  border: 1px solid var(--line-strong); border-radius: 4px;
-  padding: 8px 10px; background: var(--surface); outline: none;
+  border: 1px solid var(--line-input); border-radius: var(--radius);
+  padding: 8px 12px; background: var(--surface); outline: none;
   transition: border-color .15s, box-shadow .15s;
 }
-input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(19, 156, 216, .15); }
+input:not([type=checkbox]):not([type=radio]), select { min-height: 36px; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 input[readonly] { background: var(--surface-2); color: var(--text-2); }
 textarea { resize: vertical; min-height: 84px; }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   font: inherit; font-weight: 600; font-size: 13px;
-  padding: 8px 14px; border-radius: 4px; cursor: pointer;
-  border: 1px solid var(--line-strong); background: var(--surface); color: var(--text);
+  min-height: 36px; padding: 0 16px; border-radius: var(--radius); cursor: pointer;
+  border: 1px solid transparent; background: var(--line); color: var(--text);
   transition: background .15s, border-color .15s;
 }
-.btn:hover:not(:disabled) { background: var(--surface-2); }
+.btn:hover:not(:disabled) { background: #e8ebef; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn-primary:hover:not(:disabled) { background: var(--accent-strong); border-color: var(--accent-strong); }
-.btn-sm { padding: 5px 10px; font-size: 12px; }
-.btn-lg { padding: 13px 20px; font-size: 15px; }
+.btn-sm { min-height: 30px; padding: 0 12px; font-size: 12px; border-radius: var(--radius-badge); }
+.btn-lg { min-height: 44px; padding: 0 22px; font-size: 15px; }
 .btn-ghost { border-color: transparent; background: transparent; color: var(--text-2); }
 
 .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.toolbar input, .toolbar select { padding: 6px 10px; }
+.toolbar input, .toolbar select { padding: 6px 12px; }
 
 /* ---------- 테이블 ---------- */
 .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
-.tbl th { text-align: left; font-weight: 700; color: #222; background: var(--surface-2); padding: 10px 12px; border-bottom: 1px solid var(--line-strong); white-space: nowrap; position: sticky; top: 0; }
-.tbl td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl th { text-align: left; font-weight: 600; font-size: 12.5px; color: var(--text-3); background: var(--surface-2); padding: 10px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; position: sticky; top: 0; }
+.tbl td { padding: 13px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl th:first-child, .tbl td:first-child { padding-left: 22px; }
+.tbl th:last-child, .tbl td:last-child { padding-right: 22px; }
+.tbl tbody tr:last-child td { border-bottom: 0; }
 .tbl tbody tr { cursor: pointer; }
-.tbl tbody tr:hover td { background: #f5fbff; }
+.tbl tbody tr:hover td { background: var(--surface-2); }
 .tbl tbody tr.selected td { background: var(--accent-soft); }
 .tbl .muted { color: var(--text-3); }
 .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; }
 
 /* ---------- 배지 ---------- */
-.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; border: 1px solid transparent; }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: var(--radius-badge); font-size: 12px; font-weight: 700; white-space: nowrap; border: 0; }
 .badge-gray { background: var(--p4-soft); color: var(--p4); }
 .badge-blue { background: var(--accent-soft); color: var(--accent); }
 .badge-green { background: var(--ok-soft); color: var(--ok); }
@@ -130,40 +143,43 @@ textarea { resize: vertical; min-height: 84px; }
 .kv { display: grid; grid-template-columns: 96px 1fr; gap: 6px 12px; font-size: 13px; }
 .kv dt { color: var(--text-3); }
 .kv dd { margin: 0; }
-pre.block { background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 12px; font-family: var(--font); font-size: 12.5px; white-space: pre-wrap; margin: 0; line-height: 1.6; }
+pre.block { background: var(--surface-2); border: 0; border-radius: var(--radius); padding: 14px; font-family: var(--font); font-size: 12.5px; white-space: pre-wrap; margin: 0; line-height: 1.6; }
 
 .toast {
   position: fixed; right: 24px; bottom: 24px; z-index: 50;
-  background: #222; color: #fff; padding: 12px 16px; border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .18); font-size: 13px; max-width: 420px;
+  background: var(--text); color: #fff; padding: 12px 18px; border-radius: var(--radius);
+  font-size: 13px; max-width: 420px;
 }
 .muted { color: var(--text-3); }
 .grid-2 > .card + .card, .grid-monitor > .card + .card { margin-top: 0; }
 
 /* ---------- 관리 화면 공통 (목록 + 오른쪽 편집 폼) ---------- */
-.split { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+.split { display: grid; grid-template-columns: 1fr; gap: 10px; align-items: start; }
 .split.with-form { grid-template-columns: minmax(0, 7fr) minmax(380px, 5fr); }
 .split > .card { min-width: 0; }
 .split > .card + .card { margin-top: 0; }
-.split .form-card { position: sticky; top: 84px; }
+.split .form-card { position: sticky; top: 70px; }
 @media (max-width: 1180px) { .split.with-form { grid-template-columns: 1fr; } .split .form-card { position: static; } }
 .tbl-wrap { overflow-x: auto; }
 .tbl td.nowrap { white-space: nowrap; }
 .tbl td.wrap { white-space: normal; min-width: 200px; }
 .tbl tbody tr.off td { color: var(--text-3); }
-.seg { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
-.seg > button { font: inherit; font-weight: 600; font-size: 13.5px; color: var(--text-2); background: none; border: none; border-bottom: 2px solid transparent; padding: 10px 14px; margin-bottom: -1px; cursor: pointer; white-space: nowrap; }
-.seg > button.on { color: var(--accent); border-bottom-color: var(--accent); border-bottom-width: 3px; }
-.seg .cnt { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 4px; border-radius: 999px; background: var(--p4-soft); color: var(--text-2); font-size: 11.5px; }
+/* 보기 바꿈 알약: 목록 위에 놓인 탭 */
+.seg { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 0 0 10px; padding: 0 10px; border-bottom: 0; }
+.seg > button { font: inherit; font-weight: 600; font-size: 13.5px; color: var(--text-3); background: none; border: 0; border-radius: var(--radius); padding: 7px 14px; margin: 0; cursor: pointer; white-space: nowrap; }
+.seg > button:hover { background: rgba(255, 255, 255, .6); }
+.seg > button.on { color: var(--text); font-weight: 700; background: var(--surface); }
+.card .seg > button.on { background: var(--line); }
+.seg .cnt { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 4px; border-radius: var(--radius-badge); background: var(--p4-soft); color: var(--text-3); font-size: 12px; }
 .seg > button.on .cnt { background: var(--accent-soft); color: var(--accent); }
-.seg-right { margin-left: auto; display: flex; align-items: center; gap: 8px; padding-bottom: 6px; flex-wrap: wrap; }
+.seg-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--text); cursor: pointer; }
 .chk input { margin: 0; }
 .inline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-height: 36px; }
 .form-card fieldset { border: none; margin: 0; min-width: 0; }
 .form-card .field > input:not([type=checkbox]), .form-card .field > select, .form-card .field > textarea { width: 100%; min-width: 0; }
 .form-card .field-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.form-section { border-top: 1px dashed var(--line-strong); margin-top: 4px; padding-top: 14px; }
+.form-section { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 14px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .req { color: var(--p1); }
 .meta { font-size: 12px; color: var(--text-3); line-height: 1.7; margin: 0 0 12px; }
