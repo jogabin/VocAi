@@ -6,7 +6,7 @@
 ## 1. 읽는 법
 
 - 요건 문서는 팀이 정한 목표 기준선이고, 이 문서는 제출 코드가 그 가운데 무엇을 하는지 보여 줍니다. 요건 번호는 requirements.md와 tabs/의 번호를 그대로 썼고 모두 93개입니다(공통 28, 탭 1~7 65).
-- 상태 말뜻: `구현`(요건대로 동작하는 코드가 있음) / `부분`(일부만 있거나 모양이 다름, 무엇이 다른지 한 줄 적음) / `다름`(같은 목적이지만 다른 방식) / `없음`(코드에서 찾지 못함) / `확인 못 함`(코드만으로 판단할 수 없음).
+- 상태 말뜻: `구현`(요건대로 동작하는 코드가 있음) / `부분`(일부만 있거나 모양이 다름, 무엇이 다른지 한 줄 적음) / `다름`(같은 목적이지만 다른 방식) / `향후 과제`(코드에서 찾지 못함, 이번 제출 범위 밖: [ADR-011](../adr/ADR-011-future-work-scope.md)) / `확인 못 함`(코드만으로 판단할 수 없음).
 - 요건에 적힌 항목이 하나라도 빠졌으면 `부분`으로 두었습니다. 문구나 한계값만 다른 것은 `구현`으로 두고 비고에 적었습니다.
 - `근거`의 경로는 저장소 맨 위 폴더 기준입니다. 역할 이름은 요건 쪽 이름을 썼고, VocAi의 권한 이름과의 대응은 2장에 있습니다.
 
@@ -43,7 +43,7 @@
 
 ## 3. 한눈에 요약
 
-| 구분 | 구현 | 부분 | 다름 | 없음 | 확인 못 함 | 합계 |
+| 구분 | 구현 | 부분 | 다름 | 향후 과제 | 확인 못 함 | 합계 |
 |---|---|---|---|---|---|---|
 | 공통 0-xx | 3 | 19 | 2 | 3 | 1 | 28 |
 | 탭 1 상담등록 | 5 | 5 | 0 | 4 | 0 | 14 |
@@ -57,9 +57,9 @@
 
 총평입니다.
 
-- 93개 가운데 요건대로 동작하는 것은 16개이고, 56개는 일부만 맞으며, 4개는 방식이 다르고, 16개는 코드에 없습니다.
+- 93개 가운데 76개는 코드에 대응하는 기능이 있습니다: 요건대로 동작하는 것 16개, 핵심 흐름은 동작하고 세부 항목이 빠진 것 56개, 같은 목적을 다른 방식으로 구현한 것 4개입니다. 16개는 향후 과제([5장](#5-향후-과제))이고 1개는 확인 못 했습니다.
 - 상담이력 등록 → AI 판단(장애 감지, 같은 장애 묶기, 등급, 오탐 대조) → 알림 → 처리 결과를 다음 판단에 쓰는 흐름은 LangGraph로 구현돼 있고, 진행 단계를 그림으로 보여 주는 화면도 있습니다.
-- 코드에 없는 것은 성과측정의 정답 비교와 지금 방식 비교(7-01, 7-03), 시험 상담 정답(6-03), 텔레그램 고객 대화(1-12~1-13, 1-15), 고객 안내 기록(1-10), 장애 다시 열기(0-24), 'AI 판단 실패' 처리(0-23), 화면 권한 설정(5-06), 판별 기준 기록 보기·되돌리기와 LLM 고르기(4-04, 4-06), 사람이 바로잡은 판단 모으기(4-08), 장애 내용 고치기(2-20), 목록 정렬(2-23), 세 칸 화면(0-26)입니다.
+- 향후 과제는 성과측정의 정답 비교와 지금 방식 비교(7-01, 7-03), 시험 상담 정답(6-03), 텔레그램 고객 대화(1-12~1-13, 1-15), 고객 안내 기록(1-10), 장애 다시 열기(0-24), 'AI 판단 실패' 처리(0-23), 화면 권한 설정(5-06), 판별 기준 기록 보기·되돌리기와 LLM 고르기(4-04, 4-06), 사람이 바로잡은 판단 모으기(4-08), 장애 내용 고치기(2-20), 목록 정렬(2-23), 세 칸 화면(0-26)입니다.
 - 구조가 다른 곳은 다음과 같습니다. 탭 2·3이 장애 알림 모니터와 장애 상세 두 화면에 합쳐져 있습니다. P2·P3 승인 대신 '관찰' 등급(기본값은 P2)을 센터관리자가 수동으로 알리거나 종결하고, P3·P4는 '미대상'으로 자동 종결됩니다. 개선 의견은 P4가 아니라 별도 목록에 기록합니다. 사용자관리와 인사정보가 나뉘어 있고, 한 사용자에게 역할이 하나이며 화면 권한은 코드에 고정돼 있습니다.
 
 ## 4. 탭별 상세 표
@@ -90,10 +90,10 @@
 | 0-20 | 개선 의견이면 P4로 기록, 장애에 딸린 것은 연결, 되풀이돼도 등급을 올리지 않음 | 부분 | 개선 의견은 장애 등급 P4가 아니라 별도 테이블과 목록에 기록합니다. 비슷한 최근 장애(30일, 오탐 제외)가 있으면 그 장애에 연결하고, 장애 등급과 누적 건수에는 영향이 없습니다. | `backend/app/agents/improve.py`, `backend/sql/10_impact_improvement.sql` (`improvement_opinion`), `frontend/src/views/ImprovementView.vue` |
 | 0-21 | 단계마다 시각을 남김(등록, 판단, 등급, 승인 요청, 승인·반려, 알림, 담당 확인, 첫 회신, 첫 안내) | 부분 | 상담이력 등록(`created_at`), 에이전트 단계별 시작·종료(`agent_step`), 알림 발송(`sent_at`), 처리 상태 변경(`incident_action.created_at`), 처리 완료(`resolved_at`) 시각이 남습니다. 승인 요청, 승인·반려, 담당 확인, 첫 회신, 첫 고객 안내를 구분한 시각은 없습니다. | `backend/app/services/repo.py` (`start_step`, `add_action`), `backend/sql/01_schema.sql`, `backend/sql/07_incident_process.sql` |
 | 0-22 | 상담, 고객, 담당자는 모두 가상, 실제 사례는 유형으로 바꿔 씀 | 확인 못 함 | 시드의 고객, 직원, 연락처는 만든 값으로 보이고 실제 데이터를 가져오는 코드는 없습니다. 다만 시연 원문이 실제 사례나 실제 상품 이름에서 왔는지는 코드로 판단할 수 없습니다. | `backend/sql/05_users_hr.sql`, `backend/sql/08_customer_consult_data.sql`, `backend/sql/11_demo_scripts.sql`, `backend/app/history_seed.py` |
-| 0-23 | 등급을 못 정하면 승인 목록에 'AI 판단 실패'로 올림 | 없음 | LLM 호출이 실패하거나 키가 없으면 규칙 기반 결과로 이어 갑니다. 그래프 실행 자체가 실패하면 실행 이력(`agent_run`)만 FAILED로 남고 장애나 확인 목록에는 올라가지 않습니다. | `backend/app/agents/llm.py` (`ask_json`), `backend/app/agents/pipeline.py` (`execute`) |
-| 0-24 | 조치 완료된 장애에 새 상담이 묶이면 다시 열어 '접수'로 되돌림 | 없음 | 해결·오탐으로 닫힌 장애는 묶음 후보에서 빠집니다. 같은 증상으로 다시 문의하면 새 장애로 등록되고 이전 장애는 과거 해결 사례로만 참조됩니다. | `backend/app/services/repo.py` (`find_open_incidents`), `backend/app/agents/dedup.py` |
+| 0-23 | 등급을 못 정하면 승인 목록에 'AI 판단 실패'로 올림 | 향후 과제 | LLM 호출이 실패하거나 키가 없으면 규칙 기반 결과로 이어 갑니다. 그래프 실행 자체가 실패하면 실행 이력(`agent_run`)만 FAILED로 남고 장애나 확인 목록에는 올라가지 않습니다. | `backend/app/agents/llm.py` (`ask_json`), `backend/app/agents/pipeline.py` (`execute`) |
+| 0-24 | 조치 완료된 장애에 새 상담이 묶이면 다시 열어 '접수'로 되돌림 | 향후 과제 | 해결·오탐으로 닫힌 장애는 묶음 후보에서 빠집니다. 같은 증상으로 다시 문의하면 새 장애로 등록되고 이전 장애는 과거 해결 사례로만 참조됩니다. | `backend/app/services/repo.py` (`find_open_incidents`), `backend/app/agents/dedup.py` |
 | 0-25 | 처음 비밀번호로 로그인하면 새 비밀번호를 먼저 정함, 영문+숫자 8자 이상, 초기화하면 기존 로그인 종료 | 부분 | 비밀번호 규칙(영문과 숫자 포함 8자 이상)과 초기화·사용 중지 때 기존 로그인 종료는 있습니다. 처음 비밀번호과 첫 로그인 때 변경 강제는 없고 관리자가 비밀번호를 직접 입력합니다. 본인 비밀번호 변경은 API(`POST /api/auth/password`)만 있고 화면은 없습니다. | `backend/app/services/auth.py` (`check_password_rule`, `revoke_user_sessions`), `backend/app/routers/admin_api.py` (`update_user`), `backend/app/routers/auth_api.py` (`change_password`), `frontend/src/api/authApi.js` |
-| 0-26 | 탭 1~3에서 목록, 내용, AI 판단 세 칸을 한 화면에 두고 크기 조절 | 없음 | 목록 화면에서 행을 눌러 상세 화면으로 이동하는 방식이고, 상세는 2열(장애 정보, 처리·이력)입니다. 세 칸 배치와 칸 크기 조절은 없습니다. AI와 대화하는 칸도 없습니다. | `frontend/src/views/ConsultStatusView.vue`, `frontend/src/views/IncidentDetailView.vue` (`.grid-detail`), `frontend/src/views/ConsultRegisterView.vue` (`.grid-2`) |
+| 0-26 | 탭 1~3에서 목록, 내용, AI 판단 세 칸을 한 화면에 두고 크기 조절 | 향후 과제 | 목록 화면에서 행을 눌러 상세 화면으로 이동하는 방식이고, 상세는 2열(장애 정보, 처리·이력)입니다. 세 칸 배치와 칸 크기 조절은 없습니다. AI와 대화하는 칸도 없습니다. | `frontend/src/views/ConsultStatusView.vue`, `frontend/src/views/IncidentDetailView.vue` (`.grid-detail`), `frontend/src/views/ConsultRegisterView.vue` (`.grid-2`) |
 | 0-27 | 텔레그램을 고객 역할과 직원 알림에 씀, 토큰은 설정값으로만, 보낸 결과와 이유를 화면에서 봄 | 부분 | 직원 알림은 텔레그램 봇으로 보내고 토큰은 환경 설정값(`TELEGRAM_BOT_TOKEN`)으로만 받습니다. 알림 방식 설정(`MESSENGER_PROVIDER`)을 비워 두면 시스템 안 기록(MOCK) 방식으로 동작하고, 방식만 텔레그램으로 두고 토큰이 없으면 전송이 실패로 기록됩니다. 보낸 결과(SENT, FAILED)와 오류 문구는 DB에 남지만 화면에는 결과만 보입니다. 봇이 받은 말을 상담으로 만드는 코드(고객 역할)는 없고, 봇이 받은 대화 목록을 조회하는 기능(chat_id 찾기)만 있습니다. | `backend/app/services/messenger.py`, `backend/app/routers/voc_api.py` (`telegram_chats`), `backend/app/database.py` |
 | 0-28 | 화면 위쪽에서 AI 사용 상태와 텔레그램 연결 상태를 봄 | 부분 | 장애 알림 모니터 화면 위쪽에 'LLM 공급자·모델' 또는 '규칙 기반 모드', RAG 방식, 메신저 방식(MOCK, WEBHOOK, TELEGRAM) 배지를 보입니다. 다른 화면에는 없고, 'AI 키가 없어 판단이 실패함'이나 텔레그램 '연결됨, 연결 실패' 상태는 없습니다(설정한 방식만 보입니다). | `frontend/src/views/IncidentMonitorView.vue`, `backend/app/routers/voc_api.py` (`monitor_summary`) |
 
@@ -109,11 +109,11 @@
 | 1-06 | AI 판단 진행 단계를 바뀌는 대로 보고 끝나면 결과를 한 줄로 봄 | 부분 | 에이전트 단계(장애감지, 중복제보 통합, 심각도 판별, 메신저 전송 또는 장애이력 등록 또는 개선의견 등록)가 1초 간격으로 갱신돼 그래프와 타임라인에 보이고 단계마다 결과 메시지가 남습니다. 요건의 '결과 한 줄'은 마지막 단계 메시지로 대신하며 '승인 대기' 결과는 없고(관찰, 미대상으로 표시), 단계 이름도 요건과 다릅니다. 끝난 뒤 장애 상세로 가는 버튼이 있습니다. | `frontend/src/views/ConsultRegisterView.vue` (`pollRun`), `frontend/src/components/voc/AgentTimeline.vue`, `backend/app/agents/graph.py` (`NODES`) |
 | 1-08 | AI가 대화 원문으로 상담 요약 초안을 만들고 상담사가 고쳐 씀 | 구현 | '상담요약 초안 작성' 버튼(상담 화면을 열 때 한 번 자동 실행)이 상담사 관점의 [문의] [확인] [처리] 3줄을 만들고, AI 초안임을 안내 문구로 알립니다. 지시문에 대화에 없는 내용을 추측하지 말라고 적혀 있습니다. 비고: LLM을 못 쓰면 규칙 기반 초안이고 그렇게 안내합니다. | `backend/app/agents/summary.py`, `backend/app/routers/voc_api.py` (`summary_draft`), `frontend/src/views/ConsultRegisterView.vue` (`draftSummary`) |
 | 1-09 | 묶인 장애의 처리 상태, 회신, 확정 원인, 고객 최종 해결, 고객 안내 기록을 봄, '확인 안 됨' 표기 | 부분 | 등록 뒤 '장애 ERR-xxxx 상세 보기' 버튼으로 장애 상세(등급, 처리 상태, 처리 이력)로 이동해 볼 수 있습니다. 탭 1 안에서 보는 영역은 없고, 확정 원인, 고객 최종 해결, 고객 안내 기록과 '확인 안 됨' 표기 규칙은 없습니다. | `frontend/src/views/ConsultRegisterView.vue` (`run-foot` 버튼), `frontend/src/views/IncidentDetailView.vue` |
-| 1-10 | 고객에게 안내한 기록을 남김(고객, 방법, 일시, 내용, 쌓기) | 없음 | 고객 안내 기록을 입력하거나 저장하는 화면, API, 테이블이 없습니다. | `backend/app/routers/voc_api.py`, `backend/sql/*.sql` (해당 항목 없음) |
+| 1-10 | 고객에게 안내한 기록을 남김(고객, 방법, 일시, 내용, 쌓기) | 향후 과제 | 고객 안내 기록을 입력하거나 저장하는 화면, API, 테이블이 없습니다. | `backend/app/routers/voc_api.py`, `backend/sql/*.sql` (해당 항목 없음) |
 | 1-11 | 상담 중 진행 중인 장애를 찾아봄(나중) | 부분 | 장애 알림 모니터(모든 권한)에서 건수 박스와 조회 기간으로 장애 목록을 볼 수 있습니다. 오류 유형, 채널, 증상으로 찾는 검색은 없고 상담 화면 안에서 찾는 기능도 없습니다. | `frontend/src/views/IncidentMonitorView.vue` |
-| 1-12~1-13 | 텔레그램으로 온 말이 진행 중 상담이 됨, 상담사가 화면에서 답함 | 없음 | 봇이 받은 메시지를 상담이나 고객으로 등록하는 코드와 상담사 답장 입력이 없습니다. 봇이 받은 대화 목록을 조회하는 기능(chat_id 찾기)만 있습니다. | `backend/app/services/messenger.py` (`telegram_chats`만 있음), `frontend/src/views/ConsultRegisterView.vue` (답장 입력 없음) |
+| 1-12~1-13 | 텔레그램으로 온 말이 진행 중 상담이 됨, 상담사가 화면에서 답함 | 향후 과제 | 봇이 받은 메시지를 상담이나 고객으로 등록하는 코드와 상담사 답장 입력이 없습니다. 봇이 받은 대화 목록을 조회하는 기능(chat_id 찾기)만 있습니다. | `backend/app/services/messenger.py` (`telegram_chats`만 있음), `frontend/src/views/ConsultRegisterView.vue` (답장 입력 없음) |
 | 1-14 | AI 판단 진행을 단계 그림으로 봄(지나간, 지금, 가지 않은 단계) | 구현 | LangGraph 구조와 같은 흐름도에서 지나간 단계(초록), 지금 단계(깜빡임), 가지 않은 단계(점선)를 구분하고 장애가 아니면 END로 끝나는 경로를 보입니다. 비고: 오른쪽 AI 칸이 아니라 상담이력등록 화면 아래쪽 카드에 있습니다. | `frontend/src/components/voc/AgentGraph.vue`, `frontend/src/views/ConsultRegisterView.vue` |
-| 1-15 | 텔레그램 고객에게 고객 안내를 그 자리에서 보냄 | 없음 | 고객 안내 기록(1-10)이 없고 텔레그램으로 안내를 보내는 기능도 없습니다. | `backend/app/services/messenger.py` (직원 알림 전송만 있음) |
+| 1-15 | 텔레그램 고객에게 고객 안내를 그 자리에서 보냄 | 향후 과제 | 고객 안내 기록(1-10)이 없고 텔레그램으로 안내를 보내는 기능도 없습니다. | `backend/app/services/messenger.py` (직원 알림 전송만 있음) |
 
 ### 4-2. 탭 2 장애승인
 
@@ -133,9 +133,9 @@
 | 2-17 | 승인 대기 중 장애가 바뀌면 바로 반영(P1로 오르면 바로 알림, 알린 장애가 오르면 다시 승인 목록) | 부분 | 새 제보가 묶이면 등급을 다시 판단하고, P1로 오르면 승인 없이 바로 알리며 관찰·미대상 장애는 '접수'로 바뀌어 확인 대기 박스에서 빠집니다. 미대상이던 장애가 관찰 등급으로 오르면 다시 관찰로 엽니다. 이미 알린 장애의 등급이 올랐을 때 다시 확인 목록에 올리는 처리는 없습니다. | `backend/app/agents/notify.py` (`register`), `backend/app/agents/dedup.py` |
 | 2-18 | 'AI 판단 실패' 장애를 AI로 다시 판단시킴(나중) | 부분 | 시스템관리자가 상담이력등록 화면의 '재실행' 버튼으로 상담 하나에 대해 에이전트를 다시 돌립니다. 장애 상세에서 다시 판단시키는 기능과 'AI 판단 실패' 상태는 없습니다. | `frontend/src/views/ConsultRegisterView.vue` (`rerun`), `backend/app/routers/voc_api.py` (`rerun`) |
 | 2-19 | 장애 등급을 언제든 이유를 적고 고침(고친 등급대로 알림, 내려도 다시 알리지 않음) | 부분 | 등급은 관찰·미대상 장애에 수동 알림을 보낼 때만 화면에서 고칠 수 있고(이유는 선택 메모) 알린 장애의 등급을 언제든 고치는 화면은 없습니다. `PATCH /api/incidents/{id}`에 등급 필드가 있지만 화면에서 쓰지 않습니다. | `frontend/src/views/IncidentDetailView.vue`, `backend/app/routers/voc_api.py` (`manual_notify`, `update_incident`) |
-| 2-20 | IT 담당자와 상담사관리자가 AI가 정리한 장애 내용을 고침(나중) | 없음 | 장애 내용을 고치는 화면과 고친 기록이 없습니다. | `frontend/src/views/IncidentDetailView.vue` (읽기만 있음) |
+| 2-20 | IT 담당자와 상담사관리자가 AI가 정리한 장애 내용을 고침(나중) | 향후 과제 | 장애 내용을 고치는 화면과 고친 기록이 없습니다. | `frontend/src/views/IncidentDetailView.vue` (읽기만 있음) |
 | 2-22 | 목록을 승인 대기, 처리한 것, 자동 처리된 P1, 전체로 나눠 봄 | 부분 | 건수 박스로 목록을 나눠 봅니다(전체, 긴급, 관찰, 메신저 알림 전송, 동일유형, 처리 완료). 요건의 '처리한 것(승인·반려)'과 '자동 처리된 P1' 구분은 없습니다. | `frontend/src/views/IncidentMonitorView.vue`, `backend/app/services/repo.py` (`BOX_SQL`) |
-| 2-23 | 목록을 등록 날짜와 처리 날짜로 오름차순·내림차순 정렬 | 없음 | 표 머리를 눌러 정렬하는 기능이 없고 최근 제보 순으로 고정돼 있습니다. | `frontend/src/views/IncidentMonitorView.vue`, `backend/app/services/repo.py` (`list_incidents`) |
+| 2-23 | 목록을 등록 날짜와 처리 날짜로 오름차순·내림차순 정렬 | 향후 과제 | 표 머리를 눌러 정렬하는 기능이 없고 최근 제보 순으로 고정돼 있습니다. | `frontend/src/views/IncidentMonitorView.vue`, `backend/app/services/repo.py` (`list_incidents`) |
 | 2-24 | 장애 상세의 묶인 상담에서 그 상담(대화 원문)으로 감 | 부분 | 제보 상담 표의 행을 누르면 상담이력등록 화면(대화 원문)이 열립니다. 표에는 상담 번호, 등록 시각, 고객, 상담사, 요약이 보입니다. 요건과 다른 점: 상담 화면 권한이 없는 IT담당자는 누르면 권한 안내 화면이 나옵니다(요건은 연결 자체를 숨기라고 함). | `frontend/src/views/IncidentDetailView.vue` (제보 상담 표), `frontend/src/App.vue` |
 
 ### 4-3. 탭 3 장애처리
@@ -158,11 +158,11 @@
 | 4-01 | AI가 지금 쓰는 판별 기준 전체와 기준 버전을 봄 | 부분 | 등급 정의(정의, 판단 예시, 알림 기준, 관찰 여부, 수신 역할, 목표 시간, 머리말), 기본 등급 규칙(오류 유형·채널별), 조정 규칙(키워드, 제보 건수, 대규모 신호, 오탐, 적용 순서, 켜기·끄기)과 기준 버전을 봅니다. 대규모 신호 기준(독립 고객 3명)과 오탐 단어 목록은 보이지만 같은 장애 묶기 기준 점수, 오탐 기준 점수, 장애 표현 목록은 코드나 환경 설정값이라 화면에 없습니다. | `frontend/src/views/CriteriaView.vue`, `backend/app/services/criteria.py`, `backend/sql/04_severity_criteria.sql` |
 | 4-02 | 기준의 문장과 수치를 고침(이유 필수, 누가 언제 무엇을 고쳤는지 남김) | 부분 | 등급 정의 문장, 건수, 단어 목록, 알림 조건 등을 고칠 수 있고, 수정 창에서는 변경 사유를 꼭 입력하게 하고 등록과 규칙 스위치 조작에서는 선택입니다(서버는 강제하지 않음). 마지막 수정자와 시각이 표에 보이지만 이전 내용은 덮어써서 무엇을 고쳤는지의 이력은 남지 않습니다. | `frontend/src/views/CriteriaView.vue` (`validate`), `backend/app/services/criteria.py` (`_write`) |
 | 4-03 | 고친 기준은 다음 판단부터 씀(판단 근거에 판 번호 남김) | 구현 | 저장하면 5초 안에 다음 판단부터 적용되고, 이미 판단한 장애는 다시 판단하지 않으며, 장애에는 판단 때 쓴 기준 버전과 규칙 코드가 남습니다. | `backend/app/services/criteria.py` (`load`, `invalidate`), `backend/app/agents/severity.py` |
-| 4-04 | 기준을 고친 기록을 보고 이전 판으로 되돌림 | 없음 | 기준 이력 테이블, 화면, 되돌리기가 없습니다. 수정은 행을 그대로 갱신합니다. | `backend/app/services/criteria.py` (`_write`는 UPDATE), `backend/sql/04_severity_criteria.sql` |
+| 4-04 | 기준을 고친 기록을 보고 이전 판으로 되돌림 | 향후 과제 | 기준 이력 테이블, 화면, 되돌리기가 없습니다. 수정은 행을 그대로 갱신합니다. | `backend/app/services/criteria.py` (`_write`는 UPDATE), `backend/sql/04_severity_criteria.sql` |
 | 4-05 | 기준마다 판단 예시(가상 사례와 판단)를 붙이고 AI가 판단 때 봄 | 부분 | 등급 정의마다 '판단 예시' 글 한 칸이 있고 정의와 함께 LLM 지시문에 들어갑니다. 가상 상담 내용과 판단(등급 또는 오탐)을 쌍으로 적는 구조와 규칙(오탐 기준 등)마다 붙이는 기능은 없습니다. | `frontend/src/views/CriteriaView.vue`, `backend/app/services/criteria.py` (`llm_definitions`) |
-| 4-06 | 제품 AI가 쓸 LLM(Claude 또는 GPT와 모델)을 화면에서 고름 | 없음 | 화면에서 고르는 기능이 없습니다. LLM 공급자와 모델은 환경 설정값(`LLM_PROVIDER`, `LLM_MODEL`)으로 바꿉니다. | `backend/app/database.py`, `backend/app/agents/llm.py`, `axhub.yaml` |
+| 4-06 | 제품 AI가 쓸 LLM(Claude 또는 GPT와 모델)을 화면에서 고름 | 향후 과제 | 화면에서 고르는 기능이 없습니다. LLM 공급자와 모델은 환경 설정값(`LLM_PROVIDER`, `LLM_MODEL`)으로 바꿉니다. | `backend/app/database.py`, `backend/app/agents/llm.py`, `axhub.yaml` |
 | 4-07 | 판단 예시를 고치고 지움(고칠 때 이유, 지운 것은 기록에 남음) | 부분 | 판단 예시 글을 고칠 수 있고(변경 사유 필수) 지운 예시를 기록에 남기는 처리는 없습니다. | `frontend/src/views/CriteriaView.vue` |
-| 4-08 | AI와 사람이 다르게 본 판단을 모아 보고 예시로 더함 | 없음 | 승인할 때 바꾼 등급, 오탐 바로잡음 등을 모아 보여 주는 화면과 '판단 예시로 더하기'가 없습니다. | `frontend/src/views/CriteriaView.vue` (해당 화면 없음) |
+| 4-08 | AI와 사람이 다르게 본 판단을 모아 보고 예시로 더함 | 향후 과제 | 승인할 때 바꾼 등급, 오탐 바로잡음 등을 모아 보여 주는 화면과 '판단 예시로 더하기'가 없습니다. | `frontend/src/views/CriteriaView.vue` (해당 화면 없음) |
 
 ### 4-5. 탭 5 담당자관리
 
@@ -172,7 +172,7 @@
 | 5-02 | IT 담당자의 업무 분장 관리(오류 유형별, 업무(상품, 서비스)별 담당·부담당·팀장) | 부분 | 인사정보 관리에서 IT담당자마다 알림 역할(담당, 부담당, 팀장), 담당 오류 유형(복수 선택), 담당 시스템과 업무 상세(글)를 정합니다. 오류 유형별 분장은 되지만 업무(상품, 서비스) 목록과 업무별 분장은 없습니다. | `frontend/src/views/EmployeeView.vue`, `backend/app/routers/admin_api.py` (`EmployeeIn`, `_normalize_duty`) |
 | 5-04 | 비밀번호 초기화, 잠금 해제, 사용 중지·다시 사용, 5회 실패 잠금, 심사용 계정 보호 | 부분 | 관리자가 새 비밀번호를 입력해 초기화(기존 로그인 종료), 잠금 해제 버튼, 사용 중지와 다시 사용, 5회 연속 실패 잠금, 중지 계정 로그인 불가가 있습니다. 초기화한 비밀번호를 처음 비밀번호로 바꾸고 안내하는 처리와 심사용 계정의 초기화·중지 금지는 없습니다. | `frontend/src/views/UserAdminView.vue`, `backend/app/services/auth.py` (`login`), `backend/app/routers/admin_api.py` (`update_user`) |
 | 5-05 | 근무하지 않는 담당자는 알림 대상에서 빠짐(모두 근무하지 않으면 '찾지 못함' 표시) | 부분 | 인사정보의 '근무 중' 체크를 바꾸고, 근무 외 담당자는 알림 대상에서 빠집니다. 맡은 사람이 모두 근무하지 않을 때 '찾지 못함' 표시는 없고 '기타' 유형 담당으로 대체됩니다. | `frontend/src/views/EmployeeView.vue`, `backend/app/services/repo.py` (`find_it_staff`), `backend/app/agents/notify.py` (`primary_recipients`) |
-| 5-06 | 역할마다 쓸 수 있는 화면(탭)을 켜고 끔 | 없음 | 화면 권한을 설정하는 화면과 저장 항목이 없습니다. 권한별 화면은 코드에 고정돼 있습니다. | `frontend/src/App.vue` (`MENUS`), `backend/app/services/auth.py` |
+| 5-06 | 역할마다 쓸 수 있는 화면(탭)을 켜고 끔 | 향후 과제 | 화면 권한을 설정하는 화면과 저장 항목이 없습니다. 권한별 화면은 코드에 고정돼 있습니다. | `frontend/src/App.vue` (`MENUS`), `backend/app/services/auth.py` |
 | 5-07 | 담당자 정보에 부서, 직급, 텔레그램을 적고 대화 목록에서 골라 이음('연결됨' 표시, 끊기, 한 사람에게만) | 부분 | 부서와 직급은 글로 적고, 텔레그램은 'chat_id 찾기' 버튼으로 봇에게 말을 건 대화 목록을 불러와 고르면 메신저 ID에 들어갑니다(직접 입력도 가능). '텔레그램 연결됨' 표시와 연결 끊기 버튼은 없고, 같은 chat_id를 한 사람에게만 붙이는 검사가 없어 시드 데이터에서 같은 ID를 여러 담당자가 씁니다. | `frontend/src/views/EmployeeView.vue` (`findTelegramChats`), `backend/app/routers/voc_api.py` (`telegram_chats`), `backend/sql/05_users_hr.sql` |
 
 ### 4-6. 탭 6 시험상담등록
@@ -181,7 +181,7 @@
 |---|---|---|---|---|
 | 6-01 | 가상 고객 등록·수정(이름, 핸드폰, 성별, 나이, 번호 자동, 검색, 텔레그램 고객 표시) | 부분 | 고객정보 관리에서 이름, 핸드폰 번호(010-0000-0000 형식, 중복 불가), 성별, 나이를 등록·수정하고, 고객번호는 자동으로 붙고, 이름·번호·고객번호로 찾으며, 최근 상담과 상담 건수를 보입니다. 텔레그램 고객 표시와 시험 데이터 되돌리기 연동은 없습니다. | `frontend/src/views/CustomerView.vue`, `backend/app/routers/customer_api.py` (`create_customer`, `update_customer`) |
 | 6-02 | 가상 상담 넣기(고객, 상담사, 일시, 채널, 대화 원문) | 부분 | 상담데이터 등록에서 고객, 상담사(인사정보), 상담일자·최초시간, 대화 줄(고객·상담사)을 넣으면 '진행' 상태 상담으로 상담현황에 나타납니다. 고객 말이 없는 상담과 현재보다 5분 넘게 미래인 일시는 막습니다. 채널을 넣는 칸은 없고 상담사가 이력 등록 때 고릅니다. | `frontend/src/views/ConsultDataView.vue`, `backend/app/routers/customer_api.py` (`create_consult_data`) |
-| 6-03 | 시험 상담마다 정답(장애 여부, 등급, 오탐 여부, 묶일 상담)을 적어 둠 | 없음 | 정답을 입력하는 칸, 테이블, 화면이 없습니다. | `backend/sql/*.sql`, `frontend/src/views/ConsultDataView.vue` (해당 항목 없음) |
+| 6-03 | 시험 상담마다 정답(장애 여부, 등급, 오탐 여부, 묶일 상담)을 적어 둠 | 향후 과제 | 정답을 입력하는 칸, 테이블, 화면이 없습니다. | `backend/sql/*.sql`, `frontend/src/views/ConsultDataView.vue` (해당 항목 없음) |
 | 6-04 | 시연용 묶음을 한 번에 넣고 처음 상태로 되돌림(판단을 끝낸 장애는 넣지 않음, 일시는 넣는 시각 기준) | 다름 | 관리자 화면의 '묶음 넣기·되돌리기'는 없습니다. 시연 상담(등급별 16건과 사전 제보 6건, 초기 시드 통화 10건, '진행' 상태, 시작 시각은 넣는 시각 기준 `now() - interval`)은 DB를 처음 만들 때 SQL로 들어가고, 되돌리기는 배포 설정값(`DB_RESET_TOKEN`)이나 `init_db.py --reset`으로 DB 전체를 다시 만드는 방식입니다. 이때 판단까지 끝난 과거 상담과 장애(10/15~10/28, 하루 20건)도 에이전트를 돌리지 않고 같은 형식으로 함께 들어가 '판단을 미리 끝낸 장애는 넣지 않는다'와 다릅니다. | `backend/sql/11_demo_scripts.sql`, `backend/scripts/demo_scripts.py`, `backend/app/db_init.py` (`reset_once`), `backend/app/history_seed.py` |
 | 6-05 | 시연용 묶음 준비(등급마다 3건 이상, 묶일 상담, P2에서 P1 상향, 업무 조건 되풀이, 과거 오탐 유사, 고객 쪽 잘못, 딸린 개선 의견) | 부분 | 등급(P1~P4)마다 4건(16건), 같은 장애로 묶일 서로 다른 고객의 사전 제보 6건, 앞 P2 장애와 같은 주제의 개선 의견 대본이 있습니다. 업무 조건 되풀이, 고객 쪽 잘못으로 확인된 상담, 과거 오탐과 비슷한 상담은 시연 묶음에 없고(과거 상담 시드에만 있음), 실제 판단 결과는 실행해야 압니다. | `backend/scripts/demo_scripts.py`, `backend/sql/11_demo_scripts.sql`, `backend/demo/stt_excel/` |
 | 6-06 | 엑셀 파일로 상담을 올림(양식 내려받기, 미리보기, 오류 줄 안내, .xlsx만) | 구현 | '엑셀로 불러오기'와 '양식 내려받기'가 있고 양식 열은 화자(고객, 상담사)와 대화내용입니다. 올린 파일은 대화 줄로 바뀌어 미리보기에 보이고 확인 뒤 등록하며, 형식이 틀리면 어느 줄이 왜 안 되는지(최대 5줄) 알려 줍니다. 비고: .xlsx(.xlsm 포함)만 받고 2MB, 200줄까지입니다. | `frontend/src/views/ConsultDataView.vue`, `backend/app/services/dialog_excel.py`, `backend/app/routers/customer_api.py` |
@@ -191,12 +191,27 @@
 
 | 요건 번호 | 요건 한 줄 요약 | 상태 | VocAi에서는 | 근거 |
 |---|---|---|---|---|
-| 7-01 | 시험 상담에 대한 AI 판단이 정답과 얼마나 맞았는지 봄 | 없음 | 정답이 없고 맞힘 건수를 세는 코드와 화면이 없습니다. | `backend/app`, `frontend/src/views` (해당 코드 없음) |
+| 7-01 | 시험 상담에 대한 AI 판단이 정답과 얼마나 맞았는지 봄 | 향후 과제 | 정답이 없고 맞힘 건수를 세는 코드와 화면이 없습니다. | `backend/app`, `frontend/src/views` (해당 코드 없음) |
 | 7-02 | 단계마다 걸린 시간을 건마다와 평균으로 봄(승인 구간, 알림 → 담당 확인 구간 포함) | 부분 | 상담이력을 등록한 뒤 에이전트 단계별 소요 시간(초)이 상담이력등록 화면의 실행 타임라인에 건마다 보입니다. 구간별 평균, 승인 구간, 알림 발송에서 담당 확인까지의 구간은 없고 성과측정 화면도 없습니다. 비고: 단계 시간에 시연용 지연(`AGENT_STEP_DELAY_SEC`, 기본 1.0초)이 들어갑니다. | `frontend/src/components/voc/AgentTimeline.vue`, `backend/app/services/repo.py` (`_attach_steps`), `backend/app/database.py` |
-| 7-03 | 걸린 시간을 지금 방식(30분 이상)과 나란히 보여 주고 출처를 적음 | 없음 | 비교 화면과 출처 표시가 없습니다. | `frontend/src/views` (해당 화면 없음) |
+| 7-03 | 걸린 시간을 지금 방식(30분 이상)과 나란히 보여 주고 출처를 적음 | 향후 과제 | 비교 화면과 출처 표시가 없습니다. | `frontend/src/views` (해당 화면 없음) |
 | 7-04 | 기간별 장애 건수와 처리 시간을 봄(나중) | 부분 | 장애 알림 모니터에서 조회 기간별 장애 등록 건수와 처리 완료 건수를 박스로 봅니다. 처리 시간 집계는 없습니다. | `frontend/src/views/IncidentMonitorView.vue`, `backend/app/routers/voc_api.py` (`monitor_counts`) |
 
-## 5. VocAi에만 있는 기능
+## 5. 향후 과제
+
+코드에 없는 요건 16개입니다. 요건에서 지우지 않고 이번 제출 범위 밖으로 나눴습니다([ADR-011](../adr/ADR-011-future-work-scope.md)). 규모는 코드를 읽고 한 추정이며 개발 담당과 확인하지 않았습니다.
+
+| 묶음 | 요건 | 내용 | 규모(추정) |
+|---|---|---|---|
+| 화면 구성 | 0-26 | 탭 1~3의 목록·내용·AI 판단 세 칸 화면과 칸 크기 조절 | 대 |
+| 텔레그램 고객 대화 | 1-12, 1-13, 1-15 | 봇이 받은 말을 진행 중 상담으로 만들고, 상담사 답장과 고객 안내를 텔레그램으로 보냄 | 대 |
+| 성과 측정 | 6-03, 7-01, 7-03 | 시험 상담의 정답 입력, AI 판단과 정답의 일치 집계, 지금 방식과 시간 비교 | 대 |
+| 화면 권한 | 5-06 | 역할마다 쓸 화면을 화면에서 켜고 끔 (지금은 코드에 고정) | 대 |
+| 판단 기준 관리 | 4-04, 4-06, 4-08 | 기준 고친 기록과 되돌리기, 화면에서 LLM 고르기, AI와 사람이 다르게 본 판단 모으기 | 중 |
+| 장애 처리 | 0-23, 0-24, 2-20 | 「AI 판단 실패」 처리, 처리 끝난 장애 다시 열기, 장애 내용 고치기 | 중 |
+| 고객 안내 | 1-10 | 고객에게 안내한 기록 남기기 | 중 |
+| 목록 | 2-23 | 목록을 날짜로 오름차순·내림차순 정렬 | 소 |
+
+## 6. VocAi에만 있는 기능
 
 요건에 없거나 요건보다 넓게 구현된 것입니다. 괄호 안은 관련 요건 번호입니다.
 
@@ -226,7 +241,7 @@
 | 이전 방식 잔존 | 업무담당자(`biz_owner`) 테이블과 `GET /api/owners`, `POST /api/messenger/send`의 `owner_ids`가 남아 있습니다 | `backend/sql/01_schema.sql`, `backend/app/routers/voc_api.py` |
 | 화면에 연결되지 않은 코드 | `SttListView.vue`는 어느 메뉴에도 연결돼 있지 않고, `ApiTestView.vue`는 숨은 주소(`#/api-test`)로만 열리며, `users_dao.py`와 `getRt.py`는 예제 API입니다 | `frontend/src/views/SttListView.vue`, `frontend/src/views/ApiTestView.vue`, `backend/app/routers/users_dao.py`, `backend/app/routers/getRt.py` |
 
-## 6. 확인 못 한 것
+## 7. 확인 못 한 것
 
 - 실제 판단 결과: 시연 원문 22건이 요건대로 장애 여부, 등급, 같은 장애 묶기, 오탐 판별로 나오는지는 앱을 실행하고 LLM을 호출해야 알 수 있습니다. 판단 규칙과 흐름이 코드에 있는지만 확인했습니다.
 - 0-22: 시연 원문이 실제 사례나 실제 상품 이름에서 왔는지는 코드로 판단할 수 없습니다.

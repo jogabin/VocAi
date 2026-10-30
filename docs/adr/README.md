@@ -10,12 +10,12 @@
 |---|---|---|---|
 | [001](ADR-001-folder-structure.md) | 폴더 구조 | 채택 | 2026-10-20 |
 | [002](ADR-002-dev-flow-and-agents.md) | 개발 흐름과 개발 에이전트 | 채택 | 2026-10-23 |
-| [003](ADR-003-how-to-build-agents.md) | 에이전트를 만드는 방식 | 검토 중 | 2026-10-23 |
-| [004](ADR-004-interviewer-agent.md) | 인터뷰 에이전트 | 검토 중 | 2026-10-23 |
-| [005](ADR-005-analyst-agent.md) | 요건정리 에이전트 | 검토 중 | 2026-10-23 |
-| [006](ADR-006-architect-agent.md) | 아키텍처 에이전트 | 검토 중 | 2026-10-24 |
-| [007](ADR-007-tech-stack.md) | 기술 스택 (구현된 스택 정리) | 검토 중 | 2026-10-30 |
-| [008](ADR-008-designer-agent.md) | 디자인 에이전트 | 검토 중 | 2026-10-24 |
+| [003](ADR-003-how-to-build-agents.md) | 에이전트를 만드는 방식 | 채택 | 2026-10-23 |
+| [004](ADR-004-interviewer-agent.md) | 인터뷰 에이전트 | 채택 | 2026-10-23 |
+| [005](ADR-005-analyst-agent.md) | 요건정리 에이전트 | 채택 | 2026-10-23 |
+| [006](ADR-006-architect-agent.md) | 아키텍처 에이전트 | 채택 | 2026-10-24 |
+| [007](ADR-007-tech-stack.md) | 기술 스택 (구현된 스택 정리) | 채택 | 2026-10-30 |
+| [008](ADR-008-designer-agent.md) | 디자인 에이전트 | 채택 | 2026-10-24 |
 | [009](ADR-009-build-without-spec-agents.md) | 스펙·구현 계획 에이전트 없이 구현 계획 한 장으로 먼저 만들기 | 채택 | 2026-10-25 |
-| [010](ADR-010-submission-implementation.md) | 제출 구현은 VocAi로 하고, 요건 문서와 잇는다 | 검토 중 | 2026-10-30 |
-
+| [010](ADR-010-submission-implementation.md) | 제출 구현은 VocAi로 하고, 요건 문서와 잇는다 | 채택 | 2026-10-30 |
+| [011](ADR-011-future-work-scope.md) | 구현하지 않은 요건은 향후 과제로 나눈다 | 채택 | 2026-10-30 |

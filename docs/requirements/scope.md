@@ -5,7 +5,7 @@
 
 > 이 문서는 팀이 정한 요건 기준선입니다.  
 > 본문의 「우리 것」「앱」「배포 뒤」는 제출 구현(VocAi)에 앞서 요건을 시험해 보려고 만든 시연용 구현을 가리킵니다([ADR-010](../adr/ADR-010-submission-implementation.md)).  
-> 제출 구현이 이 요건 가운데 무엇을 하는지는 [vocai-status.md](vocai-status.md)에 있습니다.
+> 제출 구현이 이 요건 가운데 무엇을 하는지는 [vocai-status.md](vocai-status.md)에 있습니다. 코드에 없는 요건은 지우지 않고 「향후 과제」로 나눴습니다([ADR-011](../adr/ADR-011-future-work-scope.md)).
 
 > 요건정리는 여기서 정한 답을 다시 정하지 않습니다.  
 > 고쳐야 하면 인터뷰로 되돌려 보냅니다.
