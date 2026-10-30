@@ -12,12 +12,14 @@
      → 오탐 규칙(FALSE_POSITIVE)에 해당하면 알림 제외
 결과: 알림 대상 → 메신저 전송 에이전트 / 미대상 → 장애알림 정보만 등록
 적용한 기준 버전과 규칙코드를 결과에 남겨 장애에 기록합니다.
+장애감지 단계의 판정(det['p1_decision']: 유형 상담·상담사 해결·P1 지도)은 등급의 상한(P1 제외)·하한(장애 후보 최소 P2)으로
+반영하고, P1 확인 대상이면 LLM 프롬프트에 P1 관계 지도를 함께 줍니다. 대규모 장애 신호(독립 고객 3명)는 상한보다 우선합니다.
 """
 import logging
 
 from app.agents import llm, rules
 from app.database import settings
-from app.services import criteria, rag, repo
+from app.services import criteria, p1_graph, rag, repo
 
 log = logging.getLogger("voc.severity")
 NAME = "심각도 판별 에이전트"
@@ -30,6 +32,7 @@ SYSTEM_TMPL = """당신은 금융 IT 장애 심각도 판별 에이전트입니�
 [과거 유사 사례]가 주어지면 추정 원인과 초기 점검 포인트(analysis)를 쓸 때 참고하고, 관련 있는 해결 사례는 장애번호와 처리결과를 인용하세요.
 과거 사례는 참고 자료입니다. 등급은 판별기준과 이번 고객 발화로 판단하고 과거 사례의 등급을 그대로 따르지 마세요.
 오탐 사례와 비슷해도 이번 고객 발화에서 고객 귀책(비밀번호 오입력 등)이 확인되지 않으면 오탐으로 보지 마세요. 관련 없는 사례는 무시하세요.
+[P1 판단 정보]가 주어지면: P1 확인 대상이라도 이번 고객 발화에서 영향 조건(기한 임박·중대한 피해·대체수단 없음·핵심 거래 지속 차단·독립 고객 수)이 확인될 때만 P1로 하세요. 상담사가 해결했거나 오탐 유형이면 P1로 하지 마세요.
 [장애등급 판별기준]
 {definitions}
 출력 JSON: {{"severity": "{codes}", "notify": bool,
@@ -131,10 +134,29 @@ def _apply_adjust_rules(cr, det: dict, dd: dict, text: str, sev: str, count: int
     return sev
 
 
+def _apply_p1_flow(cr, flow: dict, dd: dict, sev: str, reasons: list, applied: list) -> str:
+    """장애감지 단계 판정을 등급에 반영.
+    cap: 이 등급보다 심각하면 낮춤(P1 아님). 대규모 신호나 기존 장애에 통합된 건은 낮추지 않음.
+    floor: 최소 이 등급(장애 후보는 P2 관찰)."""
+    if not flow:
+        return sev
+    before = sev
+    cap, floor = flow.get("cap"), flow.get("floor")
+    if cap and not dd.get("mass_signal") and not dd.get("merged") and sev != cap and cr.max(sev, cap) == sev:
+        sev = cap
+    if floor:
+        sev = cr.max(sev, floor)
+    if sev != before:
+        applied.append("P1FLOW")
+        reasons.append(f"[감지 플로우] {flow.get('route')}: {before}→{sev}")
+    return sev
+
+
 def run(db, ctx: dict) -> tuple[str, str, dict]:
     det, dd = ctx["detection"], ctx["dedup"]
     text = ctx["customer_text"]
     count = dd["report_count"]
+    flow = det.get("p1_decision") or {}
     cr = criteria.load(db)                       # 장애등급 판별기준 (판별기준 관리 화면에서 관리)
     reasons = [f"판별기준 {cr.version} ({cr.source})"]
     applied: list[str] = []
@@ -154,6 +176,9 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
         if merged != sev:
             reasons.append(f"통합된 기존 장애 등급 {dd.get('previous_severity')} 유지")
         sev = merged
+    if flow:
+        reasons.append(f"감지 플로우: {flow['reason']}")
+    sev = _apply_p1_flow(cr, flow, dd, sev, reasons, applied)
     notify = cr.should_notify(sev, count)
     analysis = None
     source = "판별기준"
@@ -171,6 +196,10 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
 
     if llm.enabled():
         cases_txt = f"\n\n[과거 유사 사례]\n{_cases_prompt(similar)}" if use_cases else ""
+        if flow:
+            cases_txt += f"\n\n[P1 판단 정보]\n감지 단계 판정: {flow['reason']}"
+            if flow.get("p1_candidate"):
+                cases_txt += f"\n{p1_graph.prompt_text()}"
         system = SYSTEM_TMPL.format(definitions=cr.llm_definitions(), codes="|".join(cr.codes()))
         ans = llm.ask_json(system, f"""[고객 발화]
 {text}
@@ -196,6 +225,7 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
                 sev = mass_rule["target_grade"]          # 대규모 장애 신호는 LLM 판단보다 우선
             else:
                 sev = ans["severity"]
+            sev = _apply_p1_flow(cr, flow, dd, sev, reasons, applied)   # LLM 판단에도 상한·하한 적용
             notify = cr.should_notify(sev, count)    # 알림 여부는 등급별 알림 조건(판별기준)으로만 결정
             analysis = ans.get("analysis")
             applied.append("LLM")
@@ -232,6 +262,8 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
            "false_positive": false_positive, "stage1": stage1, "stage2": stage2,
            "reasons": reasons, "similar_cases": similar,
            "analysis": analysis, "source": source, "rag_method": rag_method,
+           "p1_flow": ({k: flow.get(k) for k in ("route", "similar_type", "p1_candidate", "p1_path", "need_check")}
+                       if flow else None),
            "criteria_version": cr.version, "criteria_source": cr.source, "applied_rules": applied,
            "rag": {"method": rag_method, "count": len(similar), "in_llm": use_cases and source != "판별기준",
                    "ref_cases": refs}}

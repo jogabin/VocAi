@@ -47,6 +47,13 @@ def _recovered_words(db, customer_text: str) -> list[str]:
 
 def run(db, ctx: dict) -> tuple[str, str, dict]:
     det, consult = ctx["detection"], ctx["consult"]
+    flow = det.get("p1_decision") or {}
+    if flow.get("exclude_from_count"):
+        # 상담사가 그 자리에서 해결한 건은 '미해결 독립 고객' 집계(대규모 신호)에 넣지 않음
+        out = {"merged": False, "incident_id": None, "report_count": 1, "customer_count": 1, "mass_signal": False,
+               "candidates": [], "window_min": settings.dedup_window_min, "resolved_by_counselor": True}
+        ctx["dedup"] = out
+        return "DONE", "상담사가 그 자리에서 해결한 건 → 미해결 장애 누적(대규모 신호 집계)에서 제외, 별도 건으로 등록", out
     recovered = _recovered_words(db, ctx["customer_text"])
     if recovered:
         # 해결된 건은 미해결 오류 누적에 넣지 않음 (별도 관찰 건으로 등록)

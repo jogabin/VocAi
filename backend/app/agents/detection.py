@@ -6,32 +6,41 @@
   → 종합 판정: 둘 중 하나라도 장애로 식별되면 장애 대상 → 중복제보 통합 에이전트로,
                둘 다 아니면 에이전트 종료.
 LLM 사용 시 두 분석 결과를 함께 주고 최종 판단과 구조화(제목·증상·환경)를 맡깁니다.
+이때 팀이 확인한 유형 상담(비슷한 순서)과 P1 관계 지도도 함께 주고, 유형 상담 → 상담사 해결 여부 →
+P1 지도 순으로 장애 여부·P1 처리 방향을 정합니다 (판정 규칙은 p1_flow.py). AI가 인용한 말은 실제 대화에 있는지 확인합니다.
 """
-from app.agents import llm, rules
-from app.services import criteria
+from app.agents import llm, p1_flow, rules
+from app.services import criteria, p1_graph, type_cases
 
 NAME = "장애감지 에이전트"
 
 SYSTEM = """당신은 금융 콜센터 상담 내용을 분석해 웹/앱 전산 장애를 감지하는 에이전트입니다.
 STT 원문(고객·상담사 대화)과 상담사가 등록한 상담이력을 각각 분석한 뒤 종합 판단하세요.
 고객 단순 문의, 고객 실수(비밀번호 분실 등)는 장애가 아닐 수 있으나, 시스템 오류 가능성이 있으면 is_incident=true 로 두세요.
-상담사의 마무리·전달 멘트(예: "긴급 건으로 전달하겠습니다")는 응대 표현일 뿐이므로 장애 여부·심각도 판단 근거로 쓰지 말고, 고객이 말한 사실로 판단하세요.
+상담사의 마무리·전달 멘트(예: "긴급 건으로 전달하겠습니다")는 응대 표현일 뿐이므로 장애 여부·심각도 판단 근거로 쓰지 말고, 고객이 말한 사실로 판단하세요. (상담사 말은 counselor_resolved 판단에만 씁니다.)
 category 구분:
  - "장애": 지금 업무 진행이 막혀 있거나, 일시 실패 후 정상 진행됐더라도 상담 중 오류가 발생한 건
  - "개선의견": 이미 해결·완료된 건에 대해 화면 문구·안내·절차를 바꿔 달라는 의견 (과거 오류 경험을 말해도 지금 막힌 업무가 없으면 개선의견). is_incident=false
  - "일반": 장애도 개선의견도 아닌 일반 문의. is_incident=false
+[유형 상담]이 주어지면 팀이 확인한 상담 목록(이번 상담과 비슷한 순서)입니다. 이번 상담과 같은 상황인 유형이 있으면 그 id 를 similar_type 에 쓰고, 단어만 비슷하고 상황이 다르면 null 로 두세요.
+counselor_resolved: 상담사가 그 자리에서 정확한 해결책을 줬을 때만 resolved=true 입니다. "확인해 보겠습니다", "전달하겠습니다", "접수했습니다", 감사·사과 인사는 해결이 아닙니다. quote 는 해결이라고 본 상담사 말을 대화에서 그대로 옮기세요.
+failure_cue: 고객이 말한 오류·실패 표현이 있으면 has=true, quote 는 그 고객 말을 그대로 옮기세요.
+p1_path: [P1 관계 지도]의 경로 중 이번 고객 발화에서 조건이 모두 확인되는 것이 있으면 그 id 와 근거가 된 고객 말(quote)을 쓰고, 없거나 'P1이 아닌 경우'에 해당하면 id 를 null 로 두세요.
+quote 는 반드시 대화에 있는 말을 그대로 옮기고, 없으면 빈 문자열로 두세요.
 출력 JSON 스키마:
 {"category": "장애|개선의견|일반", "stt_is_incident": bool, "stt_reason": "STT 원문 분석 근거",
  "consult_is_incident": bool, "consult_reason": "상담이력 분석 근거",
  "is_incident": bool, "error_type": "로그인|인증|조회|이체|UI오류|기타", "channel": "앱|웹|ARS|기타",
  "severity_candidate": "P1|P2|P3|P4", "title": "30자 이내 장애 제목", "symptoms": "증상 요약 1~2문장",
  "env": {"os": "", "device": "", "app_version": "", "browser": "", "error_code": "", "error_message": "",
-         "occurred_at_text": ""}, "confidence": 0.0~1.0, "reason": "종합 판단 근거"}"""
+         "occurred_at_text": ""}, "confidence": 0.0~1.0, "reason": "종합 판단 근거",
+ "similar_type": "유형 상담 id 또는 null", "counselor_resolved": {"resolved": bool, "quote": ""},
+ "failure_cue": {"has": bool, "quote": ""}, "p1_path": {"id": "경로 id 또는 null", "quote": ""}}"""
 
 
 def analyze_stt(customer_text: str) -> dict:
     """STT 원문(고객 발화) 분석."""
-    signals = rules.contains_any(customer_text, rules.ISSUE_SIGNALS)
+    signals = rules.issue_signals(customer_text)
     error_type, scores = rules.classify_error_type(customer_text)
     env = rules.extract_env(customer_text)
     is_incident = bool(signals) and (error_type != "기타" or len(signals) >= 2)
@@ -52,7 +61,7 @@ def analyze_stt(customer_text: str) -> dict:
 def analyze_consult(consult: dict) -> dict:
     """상담이력(상담유형·접촉채널·상담요약) 분석."""
     summary = f"{consult.get('summary') or ''} {consult.get('memo') or ''}"
-    signals = rules.contains_any(summary, rules.ISSUE_SIGNALS)
+    signals = rules.issue_signals(summary)
     error_type, _ = rules.classify_error_type(summary)
     is_error_consult = consult.get("consult_type") == "전산오류문의"
     is_incident = (is_error_consult and (bool(signals) or error_type != "기타")) or len(signals) >= 2
@@ -77,7 +86,7 @@ def _combine(cr, stt: dict, cons: dict, customer_text: str) -> dict:
     form_channel = cons.get("channel")
     channel = form_channel if form_channel and form_channel != "기타" else stt["channel"]
     env = stt["env"]
-    first_issue = next((s for s in customer_text.split("\n") if rules.contains_any(s, rules.ISSUE_SIGNALS)), "")
+    first_issue = next((s for s in customer_text.split("\n") if rules.issue_signals(s)), "")
     both = stt["is_incident"] and cons["is_incident"]
     n_sig = len(set(stt["signals"]) | set(cons["signals"]))
     if category == "개선의견":
@@ -113,9 +122,15 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
     cons = analyze_consult(consult)
     result, source = _combine(cr, stt, cons, customer_text), "규칙"
 
+    # 팀이 확인한 유형 상담을 전부, 이번 상담과 비슷한 순서로 정렬 (AI 판단에 제공)
+    ranked = type_cases.rank(customer_text, result["error_type"])
+    decision = None
+
     if llm.enabled():
         transcript = "\n".join(f"{'상담사' if u['speaker'] == 'AGENT' else '고객'}: {u['text']}"
                                for u in call.get("utterances", []))
+        flow_txt = (f"\n\n[유형 상담 — 이번 상담과 비슷한 순서]\n{type_cases.prompt_text(ranked)}"
+                    f"\n\n[P1 관계 지도]\n{p1_graph.prompt_text()}") if ranked else ""
         ans = llm.ask_json(SYSTEM, f"""[STT 원문]
 {transcript}
 
@@ -127,7 +142,7 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
 [규칙 기반 1차 분석]
 STT 원문 분석: {stt}
 상담이력 분석: {cons}
-종합: {result}""")
+종합: {result}{flow_txt}""", max_tokens=2000)
         if ans and ans.get("error_type") in rules.ERROR_TYPES:
             ctx["llm_used"] = True
             source = "LLM"
@@ -144,7 +159,16 @@ STT 원문 분석: {stt}
             keep = ("is_incident", "category", "error_type", "channel", "severity_candidate", "title", "symptoms",
                     "env", "confidence", "reason")
             result = {**result, **{k: ans[k] for k in keep if k in ans and ans[k] not in (None, "")}}
+            if ranked:
+                agent_text = "\n".join(u["text"] for u in call.get("utterances", []) if u["speaker"] == "AGENT")
+                decision = p1_flow.decide(ans, customer_text, agent_text, stt["signals"])
+                if decision["incident"] is not None and result.get("category") != "개선의견":
+                    result["is_incident"] = decision["incident"]
+                    result["category"] = "장애" if decision["incident"] else "일반"
 
+    result["p1_decision"] = decision                  # AI 미사용·실패 시 None → 기존 규칙 판정 그대로
+    result["similar_types"] = [{"id": c["id"], "구분": type_cases.label(c), "similarity": c["similarity"]}
+                               for c in ranked[:3]]
     result["source"] = source
     result["stt_analysis"] = {k: stt[k] for k in ("is_incident", "error_type", "signals", "reason")}
     result["consult_analysis"] = {k: cons[k] for k in ("is_incident", "error_type", "signals", "reason")}
@@ -156,8 +180,10 @@ STT 원문 분석: {stt}
     if result.get("category") == "개선의견":
         return "DONE", (f"개선의견 감지 ({source}) - {result['reason']} → 알림 없이 개선의견으로 기록, "
                         f"유형={result['error_type']}, 채널={result['channel']}"), result
+    flow_txt = f" · 판정: {decision['reason']}" if decision else ""
     if not result["is_incident"]:
-        return "SKIPPED", f"장애 미감지 ({source}) - {sub} → 일반 상담으로 판단, 에이전트 종료", result
+        return "SKIPPED", f"장애 미감지 ({source}) - {sub} → 일반 상담으로 판단, 에이전트 종료{flow_txt}", result
     env_txt = ", ".join(f"{k}={v}" for k, v in result["env"].items() if k in ("os", "device", "app_version", "browser"))
     return "DONE", (f"장애 감지 ({source}) - {sub} → 유형={result['error_type']}, 채널={result['channel']}, "
-                    f"심각도 후보={result['severity_candidate']}" + (f", 환경[{env_txt}]" if env_txt else "")), result
+                    f"심각도 후보={result['severity_candidate']}" + (f", 환경[{env_txt}]" if env_txt else "")
+                    + flow_txt), result
