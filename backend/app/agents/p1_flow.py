@@ -22,8 +22,10 @@ from app.services import p1_graph, type_cases
 
 MIN_QUOTE = 4                                    # 인용문 최소 길이(공백·문장부호 뺀 글자 수)
 # 앞으로 하겠다는 말(확인·전달·접수·이관)과 인사만 있는 말은 해결이 아님
-PROMISE = re.compile(r"(확인|전달|접수|이관|알아보)\s*(해|하)?\s*(보|드리|두)?\s*(겠|도록)|접수했|확인\s*후")
+PROMISE = re.compile(r"(확인|전달|접수|이관|알아보)\s*(해서|해|하)?\s*(보|드리|두)?\s*(겠|도록)|접수했|확인\s*후")
 COURTESY_ONLY = re.compile(r"^(감사|죄송|불편|좋은 의견|소중한)")
+# 인사, 고객에게 묻거나 알려 달라는 말은 해결이 아님
+NOT_AN_ANSWER = re.compile(r"[?？]|시겠(어요|습니까)|알려\s?주|말씀\s?(해|부탁)|도와드릴까요|^안녕하세요")
 
 
 def _norm(s: str) -> str:
@@ -38,14 +40,14 @@ def quote_exists(quote: str, text: str) -> bool:
 
 def is_resolution_quote(quote: str) -> bool:
     q = (quote or "").strip()
-    return bool(q) and not PROMISE.search(q) and not COURTESY_ONLY.match(q)
+    return bool(q) and not PROMISE.search(q) and not COURTESY_ONLY.match(q) and not NOT_AN_ANSWER.search(q)
 
 
 def _obj(v) -> dict:
     return v if isinstance(v, dict) else {}
 
 
-def decide(ans: dict, customer_text: str, agent_text: str, rule_cue: list[str]) -> dict:
+def decide(ans: dict, customer_text: str, agent_text: str, rule_cue: list[str], agent_last: str = "") -> dict:
     """AI 판단 + 규칙 신호 → 처리 방향.
 
     반환 route: 오탐 유형 / P1 유형 / 장애 유형 / 일반 문의 유형 / 개선 유형 / 상담사 해결 / P1 지도 일치 / 장애 후보
@@ -70,6 +72,10 @@ def decide(ans: dict, customer_text: str, agent_text: str, rule_cue: list[str]) 
         if not (quote_exists(q, agent_text) and is_resolution_quote(q)):
             resolved, need_check = False, True
             notes.append("AI가 인용한 상담사 말이 대화에 없거나 해결로 볼 수 없음 → 해결 아님으로 처리")
+        elif agent_last and PROMISE.search(agent_last) and not quote_exists(q, agent_last):
+            # 상담사가 마지막 말을 확인·전달로 끝맺었으면, 그 앞의 말은 해결로 보지 않음 (P1을 놓치지 않는 쪽)
+            resolved = False
+            notes.append("상담사의 마지막 말이 확인·전달이라 해결로 보지 않음")
 
     tid = ans.get("similar_type")
     case = type_cases.by_id().get(tid) if tid else None

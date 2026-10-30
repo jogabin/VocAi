@@ -160,8 +160,9 @@ STT 원문 분석: {stt}
                     "env", "confidence", "reason")
             result = {**result, **{k: ans[k] for k in keep if k in ans and ans[k] not in (None, "")}}
             if ranked:
-                agent_text = "\n".join(u["text"] for u in call.get("utterances", []) if u["speaker"] == "AGENT")
-                decision = p1_flow.decide(ans, customer_text, agent_text, stt["signals"])
+                agent_lines = [u["text"] for u in call.get("utterances", []) if u["speaker"] == "AGENT"]
+                decision = p1_flow.decide(ans, customer_text, "\n".join(agent_lines), stt["signals"],
+                                          agent_lines[-1] if agent_lines else "")
                 if decision["incident"] is not None and result.get("category") != "개선의견":
                     result["is_incident"] = decision["incident"]
                     result["category"] = "장애" if decision["incident"] else "일반"
