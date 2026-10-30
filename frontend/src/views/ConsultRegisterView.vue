@@ -328,7 +328,7 @@ onBeforeUnmount(() => clearTimeout(pollTimer))
 <style scoped>
 .back { font-size: 12.5px; font-weight: 600; display: inline-block; margin-bottom: 4px; }
 .chat-box { height: 460px; }
-.copy-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--surface-2); border-radius: 0 0 var(--radius) var(--radius); font-size: 12px; flex-wrap: wrap; }
+.copy-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 16px; border-top: 0; background: var(--surface-2); border-radius: 0; font-size: 12px; flex-wrap: wrap; }
 .copy-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .export-error { flex-basis: 100%; color: var(--p1); }
 .form { border: none; margin: 0; min-width: 0; }
@@ -338,8 +338,8 @@ onBeforeUnmount(() => clearTimeout(pollTimer))
 .sum-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .draft-info { margin: 6px 0 0; font-size: 12px; color: var(--text-3); }
 .meta { font-size: 12px; color: var(--text-3); margin: 0 0 12px; }
-.graph-card { margin-top: 16px; }
-.graph-box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 4px; background: var(--surface-2); }
+.graph-card { margin-top: 10px; }
+.graph-box { border: 0; border-radius: var(--radius); padding: 10px 12px 4px; background: var(--surface-2); }
 .run-detail { margin-top: 16px; }
 .run-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; margin-top: 4px; flex-wrap: wrap; }
 .hint-run { margin: 12px 0 0; font-size: 12.5px; }

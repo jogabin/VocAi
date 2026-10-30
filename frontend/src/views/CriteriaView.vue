@@ -711,17 +711,18 @@ onMounted(load)
 </template>
 
 <style scoped>
-.notice { background: var(--warn-soft); color: #6b4300; border: 1px solid #f3d9a8; border-radius: var(--radius); padding: 12px 16px; font-size: 13px; margin-bottom: 16px; line-height: 1.7; }
-.tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
-.tabs > button { font: inherit; font-weight: 600; font-size: 13.5px; color: var(--text-2); background: none; border: none; border-bottom: 2px solid transparent; padding: 10px 14px; cursor: pointer; margin-bottom: -1px; white-space: nowrap; }
-.tabs > button.on { color: var(--accent); border-bottom-color: var(--accent); }
-.tabs .cnt { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 4px; border-radius: 999px; background: var(--p4-soft); color: var(--text-2); font-size: 11.5px; }
+.notice { background: var(--warn-soft); color: #6b4300; border: 0; border-radius: var(--radius); padding: 12px 16px; font-size: 13px; margin-bottom: 16px; line-height: 1.7; }
+.tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 0 0 10px; padding: 0 10px; }
+.tabs > button { font: inherit; font-weight: 600; font-size: 13.5px; color: var(--text-3); background: none; border: 0; border-radius: var(--radius); padding: 7px 14px; cursor: pointer; white-space: nowrap; }
+.tabs > button:hover { background: rgba(255, 255, 255, .6); }
+.tabs > button.on { color: var(--text); font-weight: 700; background: var(--surface); }
+.tabs .cnt { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 4px; border-radius: var(--radius-badge); background: var(--p4-soft); color: var(--text-3); font-size: 12px; }
 .tabs > button.on .cnt { background: var(--accent-soft); color: var(--accent); }
-.tabs-right { margin-left: auto; display: flex; align-items: center; gap: 12px; padding-bottom: 6px; white-space: nowrap; }
+.tabs-right { margin-left: auto; display: flex; align-items: center; gap: 12px; white-space: nowrap; }
 .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text); font-weight: 500; cursor: pointer; }
 .chk input { margin: 0; }
 
-.crit-grid { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+.crit-grid { display: grid; grid-template-columns: 1fr; gap: 10px; align-items: start; }
 .crit-grid.with-form { grid-template-columns: minmax(0, 7fr) minmax(380px, 5fr); }
 .crit-grid > .card { min-width: 0; }
 .crit-grid > .card + .card { margin-top: 0; }
@@ -735,7 +736,7 @@ onMounted(load)
 .chip { display: inline-block; padding: 1px 7px; margin: 0 4px 2px 0; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line); font-size: 12px; }
 .flow-note { padding: 10px 16px; border-top: 1px solid var(--line); background: var(--surface-2); color: var(--text-2); font-size: 12.5px; border-radius: 0 0 var(--radius) var(--radius); }
 
-.switch { width: 36px; height: 20px; border-radius: 999px; border: none; background: var(--line-strong); position: relative; cursor: pointer; padding: 0; transition: background .15s; }
+.switch { width: 36px; height: 20px; border-radius: 999px; border: none; background: #c9d0d8; position: relative; cursor: pointer; padding: 0; transition: background .15s; }
 .switch span { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: left .15s; }
 .switch.on { background: var(--ok); }
 .switch.on span { left: 18px; }

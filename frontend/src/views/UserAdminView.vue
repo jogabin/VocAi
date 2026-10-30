@@ -306,7 +306,7 @@ onMounted(() => { load(); loadEmployees() })
 
 <style scoped>
 .me { margin-left: 6px; }
-.lock-box { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--p1-soft); color: var(--p1); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; margin-bottom: 12px; }
+.lock-box { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--p1-soft); color: var(--p1); border-radius: var(--radius); padding: 8px 12px; font-size: 12.5px; margin-bottom: 12px; }
 .pw-toggle { margin-bottom: 12px; }
 .err { margin: 0 0 10px; }
 </style>

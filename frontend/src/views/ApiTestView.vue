@@ -22,5 +22,5 @@ import UserList from '../components/UserList.vue'
 .api-test table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 .api-test th, .api-test td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
 .api-test .ok { color: #0a7d2c; }
-.api-test .err { color: #c62828; }
+.api-test .err { color: var(--p1); }
 </style>

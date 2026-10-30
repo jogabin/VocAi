@@ -369,13 +369,13 @@ onMounted(load)
 .chip { display: inline-block; padding: 1px 7px; margin: 0 4px 2px 0; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line); font-size: 12px; }
 .role { margin-right: 6px; }
 .duty { display: block; font-size: 12.5px; margin-top: 2px; }
-.it-box { background: var(--ok-soft); border: 1px solid #bfe5d0; border-radius: 10px; padding: 12px 12px 0; margin-bottom: 12px; }
+.it-box { background: var(--ok-soft); border: 1px solid #bfe5d0; border-radius: var(--radius); padding: 12px 12px 0; margin-bottom: 12px; }
 .it-title { font-size: 12.5px; font-weight: 700; color: var(--ok); margin-bottom: 8px; }
 .it-title .hint { font-weight: 500; color: var(--text-3); margin-left: 6px; }
 .tg-input { display: flex; gap: 6px; }
 .tg-input input { flex: 1; min-width: 0; }
 .tg-chats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .tg-msg { margin: 6px 0 0; font-size: 12px; color: var(--text-3); }
-.tg-msg.error { color: #c62828; }
+.tg-msg.error { color: var(--p1); }
 .err { margin: 0 0 10px; }
 </style>

@@ -102,7 +102,7 @@ function toggle(o) {
 
 <style scoped>
 .small { font-size: 12px; }
-.bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 10px 12px; flex-wrap: wrap; }
 .dates { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .dates-label { font-size: 13px; font-weight: 600; color: var(--text-2); margin-right: 2px; }
 .dates input { padding: 5px 8px; }

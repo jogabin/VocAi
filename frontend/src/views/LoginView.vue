@@ -67,19 +67,19 @@ onMounted(() => idInput.value?.focus())
 </template>
 
 <style scoped>
-.login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: linear-gradient(180deg, #e3f3fc 0, #f2f4f6 55%); }
-.login-card { position: relative; width: 100%; max-width: 400px; margin-top: 96px; background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0, 0, 0, .06); padding: 70px 30px 32px; }
+.login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: var(--bg); }
+.login-card { position: relative; width: 100%; max-width: 400px; margin-top: 96px; background: var(--surface); border: 0; border-radius: var(--radius-card); box-shadow: none; padding: 70px 30px 32px; }
 /* 마스코트가 카드 위로 살짝 걸쳐 앉음 */
-.mascot { position: absolute; top: -104px; left: 50%; transform: translateX(-50%); width: 150px; height: 150px; object-fit: contain; filter: drop-shadow(0 8px 12px rgba(0, 0, 0, .12)); }
+.mascot { position: absolute; top: -104px; left: 50%; transform: translateX(-50%); width: 150px; height: 150px; object-fit: contain; }
 .login-brand { text-align: center; margin-bottom: 24px; }
-.login-brand strong { display: block; font-size: 18px; color: var(--navy); letter-spacing: -0.03em; }
+.login-brand strong { display: block; font-size: 18px; font-weight: 800; color: var(--text); letter-spacing: -0.03em; }
 .login-brand small { display: block; font-size: 12px; color: var(--text-3); margin-top: 2px; }
-h2 { font-size: 22px; color: #222; letter-spacing: -0.03em; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 2px solid var(--text); }
+h2 { font-size: 21px; font-weight: 800; color: var(--text); letter-spacing: -0.03em; margin-bottom: 18px; }
 .field input { width: 100%; }
 .full { width: 100%; margin-top: 4px; }
 .err { margin: 0 0 10px; }
-.notice { background: var(--accent-soft); color: var(--accent-strong); border-radius: 4px; padding: 8px 10px; font-size: 12.5px; margin: 0 0 12px; }
-.demo { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--line-strong); font-size: 12px; color: var(--text-3); line-height: 1.8; }
+.notice { background: var(--accent-soft); color: var(--accent-strong); border-radius: var(--radius); padding: 8px 10px; font-size: 12.5px; margin: 0 0 12px; }
+.demo { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--text-3); line-height: 1.8; }
 .demo span { display: block; font-weight: 600; color: var(--text-2); }
-.demo code { font-family: var(--mono); font-size: 11.5px; color: var(--text-2); background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+.demo code { font-family: var(--mono); font-size: 11.5px; color: var(--text-2); background: var(--surface-2); padding: 1px 6px; border-radius: 6px; }
 </style>
