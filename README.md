@@ -1,4 +1,67 @@
-# VOC 기반 자율형 장애 알림 AI Agent - 실행 가이드
+# 콜록 홈즈 — VOC 기반 자율형 장애 알림 AI Agent
+
+2026년 하반기 JB금융그룹 AI 경진대회 출품작입니다.
+
+상담이 끝난 상담 이력을 AI 에이전트가 읽고, 웹·앱 장애가 있는지 찾아냅니다.  
+장애로 판단하면 등급을 매기고, 내용을 정리해 IT 담당자에게 바로 알립니다.  
+고객의 작은 '콜록'(불편) 하나로 장애의 병명을 추리하고, 번지기 전에 처방하자는 뜻으로 팀 이름을 지었습니다.
+
+## 한눈에 보기
+
+| 무엇 | 내용 |
+|---|---|
+| 하는 일 | 상담 이력 → 장애 감지 → 중복 제보 통합 → 심각도 판별 → 담당자 식별·알림 (P1은 자동 알림, P2는 관찰 뒤 센터관리자가 수동 알림) |
+| 에이전트 | LangGraph `StateGraph` (노드 6개, 한 번에 최대 4단계, `backend/app/agents/graph.py`), 판별 근거와 과거 사례(RAG)를 함께 보여 줌 |
+| AI 모델 | Claude API(`claude-sonnet-5-5`), 실패하면 규칙 기반으로 자동 대체 |
+| 기술 | FastAPI · Vue 3 · PostgreSQL · axhub(Docker 단일 이미지) |
+| 화면 | 상담현황 · 상담이력등록 · 장애 알림 모니터 · 장애 상세정보 · 개선의견 · 판별기준 관리 · 사용자·인사정보·고객정보 관리 · 상담데이터 등록 |
+
+## 일하는 방식
+
+> Stop praying, start planning. (기도 금지, 설계 시작)
+
+팀은 AI에게 결과만 바라고 기다리지 않고, 요건과 설계를 사람이 먼저 정한 뒤 AI가 돕게 하는 방식(SDD)을 정했습니다.  
+이 저장소의 앱 코드(`backend/`, `frontend/`)는 개발 담당이 따로 만들었고, 이 문서대로 만든 것은 아닙니다. 개발 에이전트 4개(인터뷰, 요건정리, 아키텍처, 디자인)는 요건과 설계 문서를 만드는 데 썼습니다. 요건 가운데 코드가 무엇을 하는지는 [요건 대비 구현 현황](docs/requirements/vocai-status.md)에, 이렇게 된 사정은 [ADR-010](docs/adr/ADR-010-submission-implementation.md)에 있습니다.  
+흐름과 개발 에이전트는 [SDD 한눈에 보기](docs/guide/sdd.md)에, 왜 그렇게 정했는지는 [ADR-002](docs/adr/ADR-002-dev-flow-and-agents.md)에 있습니다.
+
+## 폴더 구조
+
+```
+VocAi/
+├── backend/         FastAPI 서버, LangGraph 에이전트, DB 스크립트 (sql/, scripts/)
+├── frontend/        Vue 3 + Vite 화면
+├── Dockerfile       axhub 배포용 단일 이미지 (Vue 빌드 결과를 backend/static 으로 묶음)
+├── axhub.yaml       axhub 앱 설정
+├── deploy.ps1       GCP Cloud Run 배포 스크립트
+│
+├── CLAUDE.md        Claude Code가 세션을 열 때 가장 먼저 읽는 파일
+├── .claude/         개발 에이전트 (skills/), 에이전트 사이의 약속 (rules/)
+├── harness/         Claude가 매번 지킬 규칙
+└── docs/            개발 문서
+    ├── adr/             결정 기록. 무엇을 왜 그렇게 정했는지, 다른 안은 무엇이었는지
+    ├── requirements/    범위와 요건정의서, 요건 대비 구현 현황
+    ├── architecture/    아키텍처. 에이전트 흐름, 데이터, API, 권한, 설정값
+    ├── deploy/          배포와 운영
+    └── guide/           SDD 한눈에 보기
+```
+
+## 문서 지도
+
+| 알고 싶은 것 | 문서 |
+|---|---|
+| 개발 문서 전체와 읽는 순서 | [docs/README.md](docs/README.md) |
+| 시스템이 어떻게 생겼나 | [아키텍처](docs/architecture/architecture.md) |
+| 무엇을 만들기로 했나 | [범위](docs/requirements/scope.md) · [요건정의서](docs/requirements/requirements.md) |
+| 요건 중 무엇이 구현됐나 | [요건 대비 구현 현황](docs/requirements/vocai-status.md) |
+| 왜 이렇게 정했나 | [결정 기록](docs/adr/README.md) |
+| 개발 흐름과 개발 에이전트 | [SDD 한눈에 보기](docs/guide/sdd.md) |
+| 배포하고 운영하는 법 | [배포와 운영](docs/deploy/deploy.md) |
+
+아래는 실행 가이드입니다. 로컬에서 돌리는 순서, 설정값, 시연 시나리오, 화면별 기능이 단계별로 적혀 있습니다.
+
+---
+
+## 실행 가이드
 
 ```
 backend/     FastAPI (Cloud Run 배포 대상, 배포 시 frontend 빌드 결과가 backend/static 으로 복사됨)
@@ -6,16 +69,16 @@ frontend/    Vue 3 + Vite
 deploy.ps1   Vue 빌드 → backend/static 복사 → Cloud Run 배포
 ```
 
-## 0. 구성 요약
+### 0. 구성 요약
 - **에이전트 오케스트레이션**: LangGraph `StateGraph` (`app/agents/graph.py`)
   - 노드: 장애감지 → 중복제보 통합 → 심각도 판별 → (분기) 담당자식별·알림 / 장애이력 등록
-  - 조건 분기: 장애감지 후 `장애 아님 → END`, 심각도 판별 후 `알림 대상 → 알림`, `관찰·오탐 → 이력 등록`
+  - 조건 분기: 장애감지 후 `장애 아님 → END`·`개선의견 → 개선의견 등록`, 심각도 판별 후 `알림 대상 → 알림`, `관찰·오탐 → 이력 등록`
 - **LLM**: Claude API (`claude-sonnet-5-5`) - 장애감지, 심각도 판별 노드에서 사용. 실패 시 규칙 기반으로 자동 대체
 - **RAG**: 심각도 판별 시 과거 해결·오탐 장애를 검색해 LLM 프롬프트에 넣고, 등급·초기 분석(추정 원인·점검 포인트)·2차 오탐 대조·메신저 과거 해결 사례에 사용. 검색 방식은 `RAG_SEARCH`: 기본 `text`(문자열 유사도, 배포 환경용) / `embedding`(로컬 Ollama `bge-m3` + PostgreSQL **pgvector**, pgvector 미설치 시 `real[]`, 임베딩 서버 미연결 시 문자열 유사도로 대체)
 
-## 1. 추가된 파일
+### 1. 추가된 파일
 
-### 백엔드 (backend/)
+#### 백엔드 (backend/)
 | 파일 | 내용 |
 |---|---|
 | `sql/01_schema.sql` | 테이블 정의 (STT, 상담이력, 업무담당자, 장애알림, 제보연결, 메신저이력, 에이전트 실행로그) |
@@ -36,7 +99,7 @@ deploy.ps1   Vue 빌드 → backend/static 복사 → Cloud Run 배포
 
 수정: `main.py` (라우터 등록, CORS에 POST/PATCH 허용), `app/database.py` (에이전트 설정 항목 추가)
 
-### 프론트엔드 (frontend/)
+#### 프론트엔드 (frontend/)
 | 파일 | 내용 |
 |---|---|
 | `src/views/SttListView.vue` | STT 대화목록 |
@@ -52,7 +115,7 @@ deploy.ps1   Vue 빌드 → backend/static 복사 → Cloud Run 배포
 
 수정: `App.vue` (상단 메뉴), `main.js` (voc.css 사용), `index.html` (제목). 새 npm 패키지 설치는 필요 없습니다.
 
-## 2. 사전 준비 (최초 1회)
+### 2. 사전 준비 (최초 1회)
 
 ```powershell
 # 1) 가상환경 + 패키지
@@ -77,7 +140,7 @@ pgvector로 시연하려면 아래 중 하나를 사용하세요.
 
 pgvector를 나중에 설치했다면 `python scripts\init_db.py --reset`으로 다시 만들어야 vector 컬럼으로 바뀝니다.
 
-## 3. 실행 순서
+### 3. 실행 순서
 
 ```powershell
 cd backend
@@ -91,7 +154,7 @@ npm run dev                          # http://localhost:5173
 
 `init_db.py` 출력에서 `incident_embedding 테이블 (pgvector)` 또는 `(array)`로 어떤 방식인지 확인할 수 있습니다.
 
-## 3-1. .env 항목
+### 3-1. .env 항목
 
 ```
 ANTHROPIC_API_KEY=...                    # Claude API 키 (console.anthropic.com 에서 발급)
@@ -117,9 +180,9 @@ AGENT_STEP_DELAY_SEC=1.0                 # 시연용 노드 간 지연(초)
 문자열 유사도 방식의 기준값(사례 0.1 이상 상위 3건, 오탐 일치 0.25)은 `app/agents/severity.py`에 있습니다.
 임베딩 유사도 기준값은 bge-m3 기준 추정값이므로 시연 데이터로 결과를 보고 조정하세요.
 
-## 4. 시연 시나리오 (시드 데이터 기준)
+### 4. 시연 시나리오 (시드 데이터 기준)
 
-장애 알림(메신저 발송)은 **P1 등급만** 대상입니다. P2~P4 장애는 장애알림 정보로만 등록(관찰)되고, 추가 제보로 P1이 되면 그때 알림이 나갑니다.
+장애 알림(메신저 발송)은 **P1 등급만** 대상입니다. P2는 '관찰', P3·P4는 '미대상'으로 장애알림 정보에만 등록되고, 추가 제보로 P1이 되면 그때 알림이 나갑니다.
 시드 통화 10건은 P1 발송 대상 3건 + 상담이력만 등록되는 일반 상담 7건입니다.
 
 | 순서 | 통화 | 예상 결과 |
@@ -131,7 +194,7 @@ AGENT_STEP_DELAY_SEC=1.0                 # 시연용 노드 간 지연(초)
 
 모니터 화면에서 장애를 선택해 "해결" 처리하고 원인/조치를 입력하면 즉시 임베딩되어(pgvector) 이후 유사 사례 검색에 사용됩니다.
 
-## 5. API 목록 (/api 하위)
+### 5. API 목록 (/api 하위)
 
 - STT원문조회: `GET /stt`, `GET /stt/{call_id}`
 - 상담이력조회: `GET /consults`, `GET /consults/{id}` / 등록: `POST /consults`
@@ -144,14 +207,14 @@ AGENT_STEP_DELAY_SEC=1.0                 # 시연용 노드 간 지연(초)
 
 `.env`에 `ENABLE_DOCS=true`이면 http://127.0.0.1:8000/docs 에서 바로 테스트할 수 있습니다.
 
-## 6. Cloud Run 배포 시 참고
+### 6. Cloud Run 배포 시 참고
 
 에이전트는 상담이력 등록 응답 후 백그라운드에서 실행됩니다. Cloud Run 기본 설정(요청 처리 중에만 CPU 할당)에서는
-백그라운드 처리가 느려질 수 있으므로, 시연 시 `deploy.ps1`의 `gcloud run deploy`에 `--no-cpu-throttling` 추가를 권장합니다(과금 방식 변경됨).
+백그라운드 처리가 느려질 수 있으므로, `deploy.ps1`의 `gcloud run deploy`에 `--no-cpu-throttling`이 들어 있습니다(과금 방식이 바뀌는 옵션입니다).
 배포 전 Cloud SQL에도 `python scripts\init_db.py` 실행이 필요합니다.
 Cloud Run에서는 PC의 로컬 Ollama(임베딩)에 접근할 수 없으므로, 배포 환경에서는 기본값 `RAG_SEARCH=text`(문자열 유사도)로 동작합니다. (임베딩 서버를 별도로 두면 `RAG_SEARCH=embedding`, `OLLAMA_EMBED_BASE_URL`로 지정)
 
-## 7. 장애등급 판별기준 관리 (DB)
+### 7. 장애등급 판별기준 관리 (DB)
 
 심각도 판별 에이전트는 등급 기준을 DB 테이블 3개에서 읽습니다. 테이블이 없거나 비어 있으면 `app/agents/rules.py`의 코드 기본값으로 동작합니다.
 
@@ -167,7 +230,7 @@ Cloud Run에서는 PC의 로컬 Ollama(임베딩)에 접근할 수 없으므로,
 - 수정: `GET /api/severity-criteria`로 조회, `POST/PATCH /api/severity-criteria/grades|base-rules|adjust-rules`로 등록·수정 (수정자·변경 사유 기록, `use_yn=false`로 끄기). 재배포 없이 5초 안에 반영
 - 관리 화면: 상단 메뉴 **판별기준 관리**(`#/criteria`). 행을 클릭해 수정, `+ 추가`로 등록, 조정 규칙은 표의 스위치로 바로 켜고 끔. 수정 시 변경 사유 필수. 테이블이 없으면 코드 기본값을 조회만 할 수 있음
 
-## 8. 로그인 · 사용자관리 · 인사정보 (1단계 개선)
+### 8. 로그인 · 사용자관리 · 인사정보 (1단계 개선)
 
 - 테이블: `employee`(인사정보: 상담사/센터관리자/IT담당자), `voc_user`(로그인 사용자), `voc_session`(로그인 세션). `sql/05_users_hr.sql`
   - 생성: 로컬은 `python scripts\init_db.py`, Cloud SQL은 `sql/05_users_hr.sql` 실행 (여러 번 실행 가능)
@@ -183,7 +246,7 @@ Cloud Run에서는 PC의 로컬 Ollama(임베딩)에 접근할 수 없으므로,
   - 인사정보 조회: `GET /employees?group=IT담당자&error_type=로그인` / 등록·수정(관리자): `POST /employees`, `PATCH /employees/{id}`
 - `.env` 추가 항목(선택): `AUTH_REQUIRED=true`, `SESSION_HOURS=12`, `LOGIN_MAX_FAIL=5`, `APP_BASE_URL=http://localhost:5173`(메신저 알림 링크용, 2단계에서 사용)
 
-## 9. 상담현황 · 상담이력등록 · 에이전트 개선 (2단계)
+### 9. 상담현황 · 상담이력등록 · 에이전트 개선 (2단계)
 
 - DB: `sql/06_consult_agent.sql` (로컬은 `python scripts\init_db.py`, Cloud SQL은 05 다음에 06 실행)
   - `stt_call.consult_status`(진행/상담완료), `stt_utterance.added_by`(관리자 추가 대화), `consult_history.registered_by`
@@ -196,7 +259,7 @@ Cloud Run에서는 PC의 로컬 Ollama(임베딩)에 접근할 수 없으므로,
     상담완료 건은 등록 정보와 마지막 실행 결과만 조회
 - 에이전트
   - 장애감지: STT 원문 분석과 상담이력 분석을 각각 수행 → 하나라도 장애면 장애 대상
-  - 중복제보 통합: 60분 내 동일 유형 유사 장애 통합, 3건 이상이면 대규모 신호(모니터 '동일유형 장애' 건수)
+  - 중복제보 통합: 60분 내 동일 유형 유사 장애 통합, 독립 고객 3명 이상이면 대규모 신호(모니터 '동일유형 장애' 건수)
   - 심각도 판별: 1차 판별기준으로 알림 대상 판정 → 대상일 때만 2차 과거 오탐 사례 대조
   - 메신저 전송: 1차 인사정보 담당 IT담당자(등급별 수신 역할) + 2차 과거 유사 장애 처리자, 과거 해결 사례·상세 링크 포함 템플릿
 - 상세 링크: `APP_BASE_URL/#/incident?id=N` (2단계에서는 장애 알림 모니터로 이동, 3단계에서 장애 상세정보 화면으로 연결)
@@ -209,7 +272,7 @@ Cloud Run에서는 PC의 로컬 Ollama(임베딩)에 접근할 수 없으므로,
   - IT담당자는 알림을 받은 건(대기중)부터 처리 등록. '미대상'은 RAG 오탐 사례에 쓰지 않음
 - 장애번호는 `ERR-0001` 형식 (`incident_alert.incident_no`, `sql/12_incident_no.sql`). 상세 링크·API 는 내부 번호(`incident_id`)를 그대로 씀
 - 과거 상담 데이터 (`app/history_seed.py`, 대본 `app/history_scenarios.py`): DB 초기화 때 자동으로 들어감
-  - 2026-10-15 ~ 10-27 하루 20건 상담완료 → 에이전트 실행 이력 → 등급 정의에 따라 장애알림 정보 등록
+  - 2026-10-15 ~ 10-27 하루 20건 상담완료 → 에이전트 실행 이력 → 등급 정의에 따라 장애알림 정보 등록 (실행 이력은 에이전트를 실제로 돌려 만든 것이 아니라 같은 형식으로 직접 기록한 것입니다: `app/history_seed.py`)
   - P1: 같은 장애를 고객 3명이 연달아 제보 → 대규모 신호 자동 알림 → IT담당자 처리완료
   - P2: 관찰 → 센터관리자 수동 알림(→ IT담당자 처리완료) 또는 미대상 종결 / 고객 실수 건은 오탐 종결
   - P3 · P4: 미대상 자동 종결. 메신저는 내용만 기록 (실제 발송 없음, MOCK)
@@ -217,21 +280,21 @@ Cloud Run에서는 PC의 로컬 Ollama(임베딩)에 접근할 수 없으므로,
 - 배포 환경(axhub)의 DB 초기화: 설정값 `DB_RESET_TOKEN` 에 이전과 다른 값(예: `2026-10-26`)을 넣고 재배포하면
   서버 시작 시 한 번만 `--reset` 과 같은 초기화를 합니다. 같은 값으로 재시작·재배포하면 다시 지우지 않습니다.
 
-## 10. 장애 알림 모니터 · 장애 상세정보 · 판별기준 정리 (3단계)
+### 10. 장애 알림 모니터 · 장애 상세정보 · 판별기준 정리 (3단계)
 
 - DB: `sql/07_incident_process.sql` — `incident_action`(장애 처리 이력). 로컬은 `python scripts\init_db.py`, Cloud SQL은 06 다음에 07 실행
 - 처리상태(화면) ↔ 내부 상태: 대기중=관찰·접수 / 진행중=확인중 / 미대상=오탐 / 처리완료=해결
 - 장애 알림 모니터(`#/monitor`)
-  - 건수 박스 5개: 장애 정보 등록 · 긴급 장애(최상위 등급, 미처리) · 메신저 알림 전송 · 동일유형 장애(대규모 신호) · 장애 처리 완료
+  - 건수 박스 6개: 장애 정보 등록 · 긴급 장애(최상위 등급, 미처리) · 관찰(확인 대기) · 메신저 알림 전송 · 동일유형 장애(대규모 신호) · 장애 처리 완료
   - 조회 기간(장애 등록일, 기본 최근 7일) 날짜 선택, 긴급 장애가 있으면 박스 깜빡임, 박스 클릭 → 아래 목록, 목록 클릭 → 장애 상세정보
 - 장애 상세정보(`#/incident?id=N`, 메신저 알림 링크로도 진입)
   - 장애 정보 · 초기 분석 · 판정 근거 · 과거 유사 사례 · 제보 상담 · 메신저 전송 정보(1차/2차, 메시지 내용) · 처리 이력
-  - IT담당자(인사정보 그룹 IT담당자) 또는 관리자가 처리 상태 + 처리 내용 등록. 처리완료·미대상은 처리 내용 필수,
+  - IT담당자(인사정보 그룹 IT담당자)가 처리 상태 + 처리 내용 등록. 처리완료·미대상은 처리 내용 필수,
     처리완료 시 처리자로 기록되고 RAG 지식베이스에 반영 → 이후 유사 장애의 메신저 2차 수신자·과거 해결 사례로 사용
 - 판별기준 관리: 용어를 요건정의에 맞춤(접촉채널, 적용조건), 화면 조회·등록·수정 모두 시스템관리자만, 수정자는 로그인 아이디로 기록
 - API 추가: `GET /monitor/counts?period=today|7d|all`, `GET /incidents?box=urgent&period=today`, `POST /incidents/{id}/actions`
 
-## 11. 고객정보 관리 · 상담데이터 등록 (신규 화면)
+### 11. 고객정보 관리 · 상담데이터 등록 (신규 화면)
 
 - DB: `sql/08_customer_consult_data.sql` — `customer`(고객정보, 고객번호 `CUST-9xxxx` 자동 채번), `stt_call.agent_emp_id`(상담사 연결),
   통화 → 고객 FK, 통화 ID 채번 시퀀스. 기존 시연 고객 10명은 연락처·성별·나이와 함께 고객정보로 이관.

@@ -18,3 +18,9 @@ node_modules/
 .DS_Store
 Thumbs.db
 .idea/
+
+# 개발 에이전트가 쓰는 원본 자료 보관 폴더 (git 밖)
+_raw/
+
+# Claude Code 개인 설정
+.claude/settings.local.json
