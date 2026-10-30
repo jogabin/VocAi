@@ -1,9 +1,10 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, toRef } from 'vue'
 import { fetchUsers, createUser, updateUser, fetchEmployees } from '../api/adminApi'
 import { useAuth, ROLES } from '../composables/useAuth'
 import { fmtDateTime } from '../utils/format'
 import { usePager } from '../composables/usePager'
+import { keepListState } from '../composables/useListState'
 import ListPager from '../components/voc/ListPager.vue'
 
 /* 사용자관리: VOC 장애 관리 시스템 로그인 사용자
@@ -23,6 +24,7 @@ const employees = ref([])
 const loading = ref(false)
 const loadError = ref('')
 const filter = reactive({ keyword: '', auth_role: '', use_yn: '' })
+keepListState('users', { keyword: toRef(filter, 'keyword'), auth_role: toRef(filter, 'auth_role'), use_yn: toRef(filter, 'use_yn'), page })
 
 const editing = reactive({ mode: null, id: null })
 const form = reactive({})

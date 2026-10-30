@@ -33,6 +33,12 @@ SQL_FILES = [
     "11_demo_scripts.sql",         # 등급별 시연 STT 원문 16건 + 누적 제보용 사전 통화
     "12_incident_no.sql",          # 장애번호 ERR-0001 형식
     "13_observe_manual_notify.sql",  # 관찰 여부 · 수동 알림 · 미대상 상태
+    "14_rename_it_account.sql",    # IT담당자 초기 계정 user02 → user
+]
+
+# 이미 데이터가 있는 DB(배포 환경)에도 서버 시작 때 한 번씩 적용할 SQL. 적용 기록은 app_meta(sql:<파일명>)
+UPDATE_SQL_FILES = [
+    "14_rename_it_account.sql",
 ]
 
 EMBED_TABLE = """
@@ -91,6 +97,71 @@ def init_schema(reset: bool = False) -> str:
     return mode
 
 
+# ---------------------------------------------------------------------
+# 시연 데이터 초기화 (시스템관리 > 데이터 초기화 화면 · POST /api/admin/demo-reset)
+# 상담·장애·알림·에이전트 실행·개선의견만 처음 시연 상태로 되돌린다.
+# 계정·세션·인사정보·판별기준·고객정보·업무 담당자는 지우지 않는다.
+# (아래 시드 파일은 없는 행만 넣으므로, 지운 기본 직원·고객은 다시 생기고 고친 내용은 그대로 둠)
+# ---------------------------------------------------------------------
+DEMO_TABLES = [
+    "agent_step", "agent_run", "improvement_opinion", "messenger_log", "incident_embedding",
+    "incident_action", "incident_report", "incident_alert", "consult_history", "stt_utterance", "stt_call",
+]
+DEMO_SQL_FILES = [
+    "02_seed.sql",                 # 시연 통화 · 발화 · 과거 장애 (업무 담당자는 비어 있을 때만)
+    "06_consult_agent.sql",        # 시연 장애의 담당자 · 처리자 연결
+    "07_incident_process.sql",     # 장애 처리 이력
+    "08_customer_consult_data.sql",  # 통화 → 고객 · 상담사 연결, 통화 ID 번호
+    "11_demo_scripts.sql",         # 등급별 시연 STT 원문
+]
+
+
+def _meta_table(cur) -> None:
+    cur.execute("CREATE TABLE IF NOT EXISTS app_meta (key VARCHAR(50) PRIMARY KEY, value TEXT NOT NULL,"
+                " updated_at TIMESTAMPTZ NOT NULL DEFAULT now())")
+
+
+def demo_reset_info() -> dict | None:
+    """마지막 시연 데이터 초기화 기록 {'at', 'by'} (없으면 None)."""
+    import json
+    with engine.connect() as cn:
+        if not inspect(cn).has_table("app_meta"):
+            return None
+        row = cn.execute(text("SELECT value FROM app_meta WHERE key = 'demo_reset'")).scalar()
+    return json.loads(row) if row else None
+
+
+def reset_demo_data(by: str) -> dict:
+    """시연 데이터 초기화. 다시 넣은 건수를 돌려준다."""
+    import json
+    from datetime import datetime, timezone
+    raw = engine.raw_connection()
+    try:
+        cur = raw.cursor()
+        # 같은 초기화가 겹치지 않게 잠금 (트랜잭션 종료 시 해제), 화면 조회가 길게 잡고 있으면 기다리지 않고 실패
+        cur.execute("SELECT pg_advisory_xact_lock(hashtext('vocai_db_reset'))")
+        cur.execute("SET LOCAL lock_timeout = '15s'")
+        log.warning("시연 데이터 초기화 (%s): %s", by, ", ".join(DEMO_TABLES))
+        cur.execute("TRUNCATE " + ", ".join(DEMO_TABLES) + " RESTART IDENTITY")
+        for name in DEMO_SQL_FILES:
+            cur.execute((ROOT / "sql" / name).read_text(encoding="utf-8"))
+        _meta_table(cur)
+        info = {"at": datetime.now(timezone.utc).isoformat(), "by": by}
+        cur.execute("INSERT INTO app_meta (key, value) VALUES ('demo_reset', %s) "
+                    "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()", (json.dumps(info),))
+        raw.commit()
+    except Exception:
+        raw.rollback()
+        raise
+    finally:
+        raw.close()
+    load_history()
+    with engine.connect() as cn:
+        counts = {t: cn.execute(text(f"SELECT count(*) FROM {t}")).scalar()
+                  for t in ("stt_call", "consult_history", "incident_alert")}
+    return {**info, "counts": counts}
+
+
 def load_history() -> None:
     """시연용 과거 상담 데이터 (2026-10-15 ~ 10-28, 하루 20건). 이미 있으면 건너뜀."""
     from app import history_seed
@@ -118,8 +189,28 @@ def init_if_empty() -> None:
     """빈 DB(배포 환경 첫 실행)일 때만 테이블 + 시드를 만든다. 이미 있으면 아무것도 하지 않음."""
     if inspect(engine).has_table("voc_user"):
         return
-    log.info("VOC 테이블이 없어 초기화합니다 (초기 로그인 계정: admin / admin, user01 / user01, user02 / user02)")
+    log.info("VOC 테이블이 없어 초기화합니다 (초기 로그인 계정: admin / admin, user01 / user01, user / user)")
     init_schema()
+
+
+def apply_updates() -> None:
+    """UPDATE_SQL_FILES 중 아직 적용하지 않은 것만 실행하고 기록한다 (빈 DB면 init_if_empty 가 이미 모두 실행).
+
+    재배포만으로 기존 DB에 반영되도록 서버 시작 때 부른다. 기록이 있으면 다시 실행하지 않는다.
+    """
+    if not inspect(engine).has_table("voc_user"):
+        return
+    with engine.begin() as cn:
+        cn.execute(text("SELECT pg_advisory_xact_lock(hashtext('vocai_db_reset'))"))   # 여러 인스턴스 동시 시작 대비
+        cn.execute(text("CREATE TABLE IF NOT EXISTS app_meta (key VARCHAR(50) PRIMARY KEY, value TEXT NOT NULL,"
+                        " updated_at TIMESTAMPTZ NOT NULL DEFAULT now())"))
+        for name in UPDATE_SQL_FILES:
+            key = f"sql:{name}"
+            if cn.execute(text("SELECT 1 FROM app_meta WHERE key = :k"), {"k": key}).first():
+                continue
+            log.info("SQL 적용: %s", name)
+            cn.exec_driver_sql((ROOT / "sql" / name).read_text(encoding="utf-8"))
+            cn.execute(text("INSERT INTO app_meta (key, value) VALUES (:k, 'applied')"), {"k": key})
 
 
 def reset_once(token: str) -> None:

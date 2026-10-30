@@ -5,7 +5,7 @@
     python scripts/init_db.py --reset        # VOC 테이블 삭제 후 재생성 + 시드 (DB 정보 전체 초기화, 시연 초기화)
     python scripts/init_db.py --reset-users  # 로그인 계정만 초기 계정으로 되돌림 (다른 데이터는 유지)
 
-초기 로그인 계정: admin / admin (시스템관리자), user01 / user01 (상담사), user02 / user02 (IT담당자)
+초기 로그인 계정: admin / admin (시스템관리자), user01 / user01 (상담사), user / user (IT담당자)
 .env 의 DATABASE_URL 을 그대로 사용합니다. 기존 users 테이블은 건드리지 않습니다.
 pgvector 확장이 설치돼 있으면 vector 컬럼을, 없으면 real[] 컬럼을 만듭니다(자동 대체).
 """
@@ -20,7 +20,7 @@ import logging  # noqa: E402
 from app.database import SessionLocal, settings  # noqa: E402
 from app.db_init import init_schema, reset_users  # noqa: E402
 
-ACCOUNTS = "admin / admin (시스템관리자), user01 / user01 (상담사), user02 / user02 (IT담당자)"
+ACCOUNTS = "admin / admin (시스템관리자), user01 / user01 (상담사), user / user (IT담당자)"
 
 
 def main() -> None:

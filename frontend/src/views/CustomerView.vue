@@ -1,9 +1,10 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, toRef } from 'vue'
 import { fetchCustomers, createCustomer, updateCustomer } from '../api/adminApi'
 import { navigate } from '../composables/useHashRoute'
 import { fmtDateTime } from '../utils/format'
 import { usePager } from '../composables/usePager'
+import { keepListState } from '../composables/useListState'
 import ListPager from '../components/voc/ListPager.vue'
 
 /* 고객정보 관리: 고객 목록 · 등록 · 수정 (고객번호 자동 채번)
@@ -14,6 +15,7 @@ const { page, pages, total, size, pageRows } = usePager(rows)
 const loading = ref(false)
 const loadError = ref('')
 const filter = reactive({ keyword: '', gender: '' })
+keepListState('customers', { keyword: toRef(filter, 'keyword'), gender: toRef(filter, 'gender'), page })
 
 const editing = reactive({ mode: null, id: null })
 const form = reactive({ customer_name: '', phone: '', gender: '', age: '' })

@@ -60,7 +60,7 @@ onMounted(() => idInput.value?.focus())
       <!--<div class="demo">
         <span>시연 계정</span>
         <div><code>admin / admin</code> 시스템관리자</div>
-        <div><code>user01 / user01</code> 상담사 · <code>user02 / user02</code> IT담당자</div>
+        <div><code>user01 / user01</code> 상담사 · <code>user / user</code> IT담당자</div>
       </div>-->
     </form>
   </div>

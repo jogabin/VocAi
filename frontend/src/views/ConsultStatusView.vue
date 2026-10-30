@@ -4,6 +4,7 @@ import { fetchSttCalls } from '../api/vocApi'
 import { navigate } from '../composables/useHashRoute'
 import { usePolling } from '../composables/usePolling'
 import { usePager } from '../composables/usePager'
+import { keepListState } from '../composables/useListState'
 import ListPager from '../components/voc/ListPager.vue'
 import { fmtDate, fmtDateTime, fmtDuration } from '../utils/format'
 
@@ -59,6 +60,7 @@ const rows = computed(() => {
   })
 })
 const { page, pages, total, size, pageRows, reset } = usePager(rows)
+keepListState('stt', { tab, keyword, dateFrom, dateTo, sort, page })
 watch([tab, sort], reset)
 const counts = computed(() => ({
   '': all.value.length,

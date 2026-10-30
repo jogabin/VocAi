@@ -4,6 +4,7 @@ import { fetchEmployees, fetchEmployee, createEmployee, updateEmployee } from '.
 import { fetchTelegramChats } from '../api/vocApi'
 import { useAuth } from '../composables/useAuth'
 import { usePager } from '../composables/usePager'
+import { keepListState } from '../composables/useListState'
 import ListPager from '../components/voc/ListPager.vue'
 
 /* 인사정보 관리: 상담사 / 센터관리자 / IT담당자.
@@ -50,6 +51,7 @@ const counts = computed(() => {
 })
 
 const { page, pages, total, size, pageRows, reset } = usePager(rows)
+keepListState('employees', { group, keyword, showInactive, page })
 watch([keyword, showInactive], reset)
 async function load() {
   loading.value = true

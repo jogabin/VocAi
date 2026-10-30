@@ -342,7 +342,7 @@ Cloud Run에서는 PC의 로컬 Ollama(임베딩)에 접근할 수 없으므로,
 - 테이블: `employee`(인사정보: 상담사/센터관리자/IT담당자), `voc_user`(로그인 사용자), `voc_session`(로그인 세션). `sql/05_users_hr.sql`
   - 생성: 로컬은 `python scripts\init_db.py`, Cloud SQL은 `sql/05_users_hr.sql` 실행 (여러 번 실행 가능)
   - 초기 데이터: 기존 업무담당자(biz_owner) 12명을 IT담당자로 이관 + 상담사 3명 + 센터관리자 2명
-  - 초기 계정: `admin / admin`(시스템관리자), `user01 / user01`(상담사), `user02 / user02`(IT담당자) → 운영 시 사용자관리에서 비밀번호 변경
+  - 초기 계정: `admin / admin`(시스템관리자), `user01 / user01`(상담사), `user / user`(IT담당자) → 운영 시 사용자관리에서 비밀번호 변경
   - 계정만 초기 계정으로 되돌리기: `python scripts\init_db.py --reset-users` (다른 데이터 유지) / DB 정보 전체 초기화: `python scripts\init_db.py --reset`
 - 로그인: 비밀번호는 PBKDF2 해시로 저장, 로그인 시 발급한 토큰으로 세션 유지(마지막 사용 후 `SESSION_HOURS`시간, 기본 12). 5회 연속 실패 시 잠금 → 사용자관리에서 해제
 - 권한: 관리자만 판별기준 관리·사용자관리·인사정보 관리 메뉴 사용. 일반 사용자는 상담·모니터 메뉴만 보임

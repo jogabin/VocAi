@@ -1,5 +1,7 @@
 import { computed, reactive } from 'vue'
 import { fetchMe, login as apiLogin, logout as apiLogout } from '../api/authApi'
+import { clearRoute } from './useHashRoute'
+import { clearListState } from './useListState'
 import { clearToken, getToken, setToken, setUnauthorizedHandler } from '../api/authToken'
 
 // 앱 전체에서 공유하는 로그인 상태
@@ -42,6 +44,9 @@ async function logout() {
   clearToken()
   state.user = null
   state.notice = '로그아웃했습니다.'
+  // 다시 로그인하면 로그아웃 전 화면·검색조건이 아니라 처음 화면부터 (세션 만료로 나간 경우는 그대로 둠)
+  clearListState()
+  clearRoute()
 }
 
 /* 권한(auth_role) 4종 — 화면 설계서 SCR-01~10 기준

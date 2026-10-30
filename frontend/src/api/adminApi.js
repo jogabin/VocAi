@@ -87,3 +87,14 @@ export function downloadDialogTemplate() {
 export function downloadDialogExcel(callId) {
   return saveBlob(`/stt/${encodeURIComponent(callId)}/dialog-excel`, `상담대화_${callId}.xlsx`)
 }
+
+/* ---------- 데이터 초기화 (시스템관리자) ---------- */
+export async function fetchDemoReset() {
+  const { data } = await http.get('/admin/demo-reset')
+  return data
+}
+
+export async function runDemoReset(confirm) {
+  const { data } = await http.post('/admin/demo-reset', { confirm }, { timeout: 120000 })
+  return data
+}

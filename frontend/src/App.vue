@@ -16,6 +16,7 @@ import EmployeeView from './views/EmployeeView.vue'
 import CustomerView from './views/CustomerView.vue'
 import ConsultDataView from './views/ConsultDataView.vue'
 import ApiTestView from './views/ApiTestView.vue'
+import DataResetView from './views/DataResetView.vue'
 
 // vue-router 없이 해시 기반 화면 전환 (#/stt, #/consult, #/monitor, #/incident, #/improvements, #/criteria, #/users, #/employees, #/customers, #/consult-data)
 // 로그인 전에는 어느 주소로 들어와도 로그인 화면을 보여주고, 로그인하면 원래 주소의 화면을 엽니다.
@@ -38,6 +39,8 @@ const MENUS = [
   { id: 'SCR-09', path: '/customers', label: '고객정보 관리', view: CustomerView, roles: ROLE_SYS, group: '시스템관리' },
   // 상담데이터 등록: 시연용 기초 상담데이터 생성 기능
   { id: 'SCR-10', path: '/consult-data', label: '상담데이터 등록', view: ConsultDataView, roles: ROLE_SYS, group: '시스템관리' },
+  // 데이터 초기화: 시연 데이터를 처음 상태로 (재배포 없이)
+  { id: 'SCR-12', path: '/data-reset', label: '데이터 초기화', view: DataResetView, roles: ROLE_SYS, group: '시스템관리' },
   { path: '/api-test', label: 'API 테스트', view: ApiTestView, roles: ROLE_SYS, hidden: true },   // 메뉴에서 숨김 (주소로만 접근)
 ]
 const allowedMenus = computed(() => MENUS.filter((m) => auth.hasRole(m.roles)))

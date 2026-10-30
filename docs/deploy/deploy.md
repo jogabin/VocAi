@@ -70,10 +70,13 @@
 | `... --reset` | VOC 테이블을 모두 지우고 다시 만듦(계정 포함). 연습용 `users` 테이블과 `app_meta` 는 그대로 | `backend/app/db_init.py` 의 `VOC_TABLES` |
 | `... --reset-users` | 계정·세션을 지우고 초기 계정 3개로 다시 만듦. 다른 데이터는 유지 | `backend/app/db_init.py` 의 `reset_users` |
 | `DB_RESET_TOKEN` | 배포 환경에서 `--reset` 과 같은 일(아래) | `backend/app/db_init.py` 의 `reset_once` |
+| 시스템관리 > 데이터 초기화 화면 | 재배포 없이 시연 데이터(상담·장애·알림·실행 이력·개선의견)만 처음 상태로. 계정·인사정보·판별기준·고객정보는 유지 ([ADR-013](../adr/ADR-013-demo-data-reset.md)) | `backend/app/db_init.py` 의 `reset_demo_data` |
 
 `DB_RESET_TOKEN` 은 비워 두면 아무 일도 하지 않습니다. 서버가 시작할 때 마지막으로 적용한 값(`app_meta` 테이블에 기록)과 다르면 VOC 테이블을 모두 지우고 시드로 다시 만든 뒤 새 값을 기록하고, 같은 값이면 지우지 않습니다. `app_meta` 에 기록이 없는 DB에 처음 값을 넣는 배포도 「다른 값」이라 초기화됩니다. 인스턴스 여러 개가 동시에 시작해도 DB 잠금으로 한 곳만 초기화합니다. 초기화되면 로그인 계정도 초기 계정으로 돌아갑니다.
 
 주의: 이미 DB가 있는 환경에는 새 SQL(예: 09~13)이 자동으로 적용되지 않습니다(자동 초기화는 `voc_user` 가 없을 때만). 스키마가 바뀐 버전을 올릴 때는 `init_db.py`(데이터 유지)를 실행하거나 `DB_RESET_TOKEN`(데이터 삭제)을 써야 합니다. axhub 안에서 `init_db.py` 를 실행하는 방법은 확인 못 함.
+
+기존 DB에도 꼭 반영해야 하는 변경은 `backend/app/db_init.py` 의 `UPDATE_SQL_FILES` 에 SQL 파일을 넣으면, 서버가 시작할 때(재배포 포함) 아직 적용하지 않은 파일만 한 번 실행하고 `app_meta`(`sql:<파일명>`)에 기록합니다. 기록이 있으면 다시 실행하지 않습니다(`apply_updates`). 지금 들어 있는 것은 `14_rename_it_account.sql`(IT담당자 초기 계정 `user02 / user02` → `user / user`)입니다.
 
 ## 6. 로컬에서 돌리는 순서
 

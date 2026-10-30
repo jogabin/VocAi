@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.database import engine, settings
-from app.db_init import init_if_empty, reset_once
+from app.db_init import apply_updates, init_if_empty, reset_once
 from app.routers import admin_api, auth_api, customer_api, getRt, users_dao, voc_api   # 본인 라우터 파일명에 맞게 수정
 from app.services.auth import require_user
 
@@ -20,6 +20,7 @@ logging.basicConfig(level=logging.INFO)
 async def lifespan(app: FastAPI):
     reset_once(settings.db_reset_token)   # DB_RESET_TOKEN 이 새 값이면 한 번만 초기화 (기존 데이터 삭제)
     init_if_empty()   # 빈 DB(axhub 등 새 배포 환경)면 테이블 + 시드 생성
+    apply_updates()   # 기존 DB에도 적용할 SQL(UPDATE_SQL_FILES)을 한 번씩 적용 (예: IT담당자 계정 user02 → user)
     yield
     engine.dispose()
 

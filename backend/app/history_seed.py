@@ -284,7 +284,7 @@ class _Loader:
         return rng.choice(workers)
 
     def _action(self, iid: int, ps: str, before: str, after: str, content: str, emp: dict, at: datetime) -> None:
-        login = "user02" if emp["emp_name"] == "김도윤" else emp["emp_no"].lower()
+        login = "user" if emp["emp_name"] == "김도윤" else emp["emp_no"].lower()
         self.db.execute(text("""
             INSERT INTO incident_action (incident_id, process_status, status_before, status_after, content, emp_id,
                                          actor_login, actor_name, created_at)
@@ -536,7 +536,7 @@ class _Loader:
             VALUES (:cid, :call, :cust, :cname, :et, :ch, :title, :content, :ex, :rel, :at) RETURNING *"""),
             {"cid": c["consult"]["consult_id"], "call": c["call_id"], "cust": c["cust"]["customer_id"],
              "cname": c["cust"]["customer_name"], "et": sc["error_type"], "ch": sc["channel"], "title": sc["title"],
-             "content": c["consult"]["summary"], "ex": c["customer_text"][:1000],
+             "content": improve.rule_summary(sc["title"], c["consult"]["summary"]), "ex": c["customer_text"][:1000],
              "rel": related["incident_id"] if related else None, "at": c["consult_at"] + timedelta(seconds=5)}))
         msg = f"개선의견 #{row['improvement_id']} 등록 - 알림·승인 대상 아님, 장애 누적에서 제외"
         if related:

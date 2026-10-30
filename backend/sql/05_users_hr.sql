@@ -2,7 +2,7 @@
 -- 05. 로그인 사용자 / 세션 / 인사정보(직원)
 --   - 기존 users 테이블(연습용)은 건드리지 않습니다.
 --   - 여러 번 실행해도 안전합니다 (IF NOT EXISTS / WHERE NOT EXISTS).
---   - 초기 계정: admin / admin (시스템관리자), user01 / user01 (상담사), user02 / user02 (IT담당자)
+--   - 초기 계정: admin / admin (시스템관리자), user01 / user01 (상담사), user / user (IT담당자)
 --     계정만 초기화: python scripts/init_db.py --reset-users
 --   - 권한(auth_role) 4종: 상담사 / 센터관리자 / IT담당자 / 시스템관리자 (기존 DB 변환은 09_auth_roles.sql)
 --     → 운영 환경에서는 로그인 후 사용자관리 화면에서 비밀번호를 바꾸세요.
@@ -99,6 +99,8 @@ SELECT v.login_id, v.pw, v.user_name, v.auth_role, (SELECT emp_id FROM employee 
   FROM (VALUES
    ('admin',  'pbkdf2_sha256$200000$865e4d65724ca288e44ab67830c067a1$0a8a13755e0715453c4e9643a343e8719d8fc6e6c11f9e3df44669ca4161f74a', '강민정', '시스템관리자'),
    ('user01', 'pbkdf2_sha256$200000$c707025bdc136efdc4fd723d3d6f968c$e711c8c31136c297753614d0db2870f0f67ac1cf5d0cbc5f8e75fde0743cd040', '이수진', '상담사'),
-   ('user02', 'pbkdf2_sha256$200000$8e94ee3f12c8f1c764d49137bbb2607e$bdab74ee51f6eae9c0065c2920c2ff6819e977e454c7ac9634a9fea6ad938946', '김도윤', 'IT담당자')
+   ('user',   'pbkdf2_sha256$200000$271f628168521d174c60a5c3107cbe83$dc5298fde2586bc9b649c7217ce06178618e56224a1034137ef4eb9cee33a525', '김도윤', 'IT담당자')
   ) AS v(login_id, pw, user_name, auth_role)
- WHERE NOT EXISTS (SELECT 1 FROM voc_user u WHERE u.login_id = v.login_id);
+ WHERE NOT EXISTS (SELECT 1 FROM voc_user u WHERE u.login_id = v.login_id)
+   -- 예전 IT담당자 계정(user02)이 있는 DB는 새로 만들지 않고 14_rename_it_account.sql 에서 이름을 바꿈
+   AND NOT (v.login_id = 'user' AND EXISTS (SELECT 1 FROM voc_user u WHERE u.login_id = 'user02'));

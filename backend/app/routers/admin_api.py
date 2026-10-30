@@ -11,6 +11,10 @@
 - GET   /employees/{emp_id}        직원 상세 (연결된 로그인 계정 포함)
 - POST  /employees                 직원 등록 (시스템관리자)
 - PATCH /employees/{emp_id}        직원 수정 (시스템관리자)
+
+데이터 초기화 (시스템관리자 전용)
+- GET   /admin/demo-reset          마지막 시연 데이터 초기화 기록 · 현재 건수
+- POST  /admin/demo-reset          시연 데이터 초기화 (confirm="초기화" 를 보내야 실행)
 """
 from typing import Literal
 
@@ -18,7 +22,8 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
-from app.database import DB
+from app import db_init
+from app.database import DB, engine
 from app.services import auth
 
 router = APIRouter(tags=["admin"])
@@ -275,3 +280,33 @@ def update_employee(emp_id: int, body: EmployeePatch, db: DB, admin: auth.AdminU
     _update(db, "employee", "emp_id", emp_id, data, admin["login_id"])
     db.commit()
     return _get_employee(db, emp_id)
+
+
+# =====================================================================
+# 데이터 초기화 (시스템관리 > 데이터 초기화)
+# =====================================================================
+class DemoResetIn(BaseModel):
+    confirm: str = Field(description='실수로 지우지 않도록 "초기화" 를 그대로 보내야 실행')
+
+
+def _demo_counts() -> dict:
+    with engine.connect() as cn:
+        return {t: cn.execute(text(f"SELECT count(*) FROM {t}")).scalar()
+                for t in ("stt_call", "consult_history", "incident_alert", "agent_run", "improvement_opinion")}
+
+
+@router.get("/admin/demo-reset", summary="시연 데이터 초기화 기록 · 현재 건수 (시스템관리자)")
+def get_demo_reset(_: auth.SysAdminUser):
+    return {"last": db_init.demo_reset_info(), "counts": _demo_counts(),
+            "tables": db_init.DEMO_TABLES}
+
+
+@router.post("/admin/demo-reset", summary="시연 데이터 초기화: 상담·장애·알림·실행 이력·개선의견을 처음 시연 상태로 (시스템관리자)")
+def run_demo_reset(body: DemoResetIn, admin: auth.SysAdminUser):
+    if body.confirm.strip() != "초기화":
+        raise HTTPException(400, "확인 문구가 맞지 않습니다. '초기화'를 입력하세요.")
+    try:
+        result = db_init.reset_demo_data(admin["login_id"])
+    except Exception as e:
+        raise HTTPException(500, f"초기화하지 못했습니다. 다른 화면의 조회가 끝난 뒤 다시 시도하세요. ({str(e).splitlines()[0]})")
+    return {**result, "counts": _demo_counts()}

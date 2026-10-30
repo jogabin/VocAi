@@ -1,13 +1,19 @@
 <script setup>
+import { computed } from 'vue'
 import { fmtOffset } from '../../utils/format'
-defineProps({ utterances: { type: Array, default: () => [] }, customerName: String, agentName: String })
+// 화자 표시: 상담사는 'OOO 상담사', 고객은 이름 없이 '고객' (customerName 은 예전 호출 호환용으로 받기만 함)
+const props = defineProps({ utterances: { type: Array, default: () => [] }, customerName: String, agentName: String })
+const agentLabel = computed(() => {
+  const name = (props.agentName || '').replace(/^상담사\s*|\s*상담사$/g, '').trim()
+  return name ? `${name} 상담사` : '상담사'
+})
 </script>
 
 <template>
   <div class="chat">
     <div v-for="u in utterances" :key="u.seq" class="msg" :class="u.speaker === 'AGENT' ? 'agent' : 'customer'">
       <div class="meta">
-        <strong>{{ u.speaker === 'AGENT' ? (agentName || '상담사') : (customerName || '고객') }}</strong>
+        <strong>{{ u.speaker === 'AGENT' ? agentLabel : '고객' }}</strong>
         <span>{{ fmtOffset(u.offset_sec) }}</span>
         <span v-if="u.added_by" class="added" :title="'관리자 추가: ' + u.added_by">추가</span>
       </div>

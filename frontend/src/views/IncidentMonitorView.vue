@@ -8,6 +8,7 @@ import mascot from '../assets/mascot.png'
 import SeverityBadge from '../components/voc/SeverityBadge.vue'
 import StatusBadge from '../components/voc/StatusBadge.vue'
 import { usePager } from '../composables/usePager'
+import { keepListState, listState } from '../composables/useListState'
 import ListPager from '../components/voc/ListPager.vue'
 
 /* 장애 알림 모니터
@@ -39,15 +40,21 @@ const BOXES = [
   { key: 'resolved', label: '장애 처리 완료', desc: 'IT담당자 처리완료' },
 ]
 
-const [initFrom, initTo] = initialDates(query.value)
+// 주소에 조건이 없으면(메뉴로 들어옴) 마지막으로 보던 박스·기간
+const saved = listState('monitor')
+const fromUrl = ['box', 'from', 'to', 'period'].some((k) => query.value[k] != null)
+const [initFrom, initTo] = !fromUrl && 'dateFrom' in saved ? [saved.dateFrom, saved.dateTo] : initialDates(query.value)
 const dateFrom = ref(initFrom)
 const dateTo = ref(initTo)
-const box = ref(BOXES.some((b) => b.key === query.value.box) ? query.value.box : 'registered')
+const initBox = fromUrl ? query.value.box : saved.box
+const box = ref(BOXES.some((b) => b.key === initBox) ? initBox : 'registered')
 const counts = ref(null)
 const summary = ref(null)
 const list = ref([])
 const runs = ref([])
 const { page, pages, total, size, pageRows, reset } = usePager(list)
+const samePlace = saved.box === box.value && saved.dateFrom === dateFrom.value && saved.dateTo === dateTo.value
+keepListState('monitor', { box, dateFrom, dateTo, page }, samePlace ? ['page'] : [])
 watch(box, reset)
 const error = ref('')
 const updatedAt = ref(null)
@@ -106,6 +113,12 @@ function openIncident(i) {
   navigate('/incident', { id: i.incident_id })
 }
 
+// RAG 표시 색: 문자열 유사도(설정으로 고른 방식)는 연한 초록, 임베딩 실패로 문자열 유사도로 대체 중이면 주황, 그 밖에는 회색
+const ragBadge = computed(() => {
+  const r = summary.value?.rag
+  if (r?.search === 'text') return 'badge-green'
+  return r?.embed_ok === false ? 'badge-amber' : 'badge-gray'
+})
 const ragLabel = computed(() => {
   const r = summary.value?.rag
   if (!r) return ''
@@ -126,7 +139,7 @@ const ragLabel = computed(() => {
         <span v-if="summary" class="badge" :class="summary.llm_enabled ? 'badge-blue' : 'badge-gray'">
           {{ summary.llm_enabled ? 'LLM ' + summary.llm_desc : '규칙 기반 모드' }}
         </span>
-        <span v-if="summary" class="badge" :class="summary.rag?.search !== 'text' && summary.rag?.embed_ok === false ?'badge-amber' : 'badge-gray'">{{ ragLabel }}</span>
+        <span v-if="summary" class="badge" :class="ragBadge">{{ ragLabel }}</span>
         <span v-if="summary" class="badge badge-gray">메신저 {{ summary.messenger_mode }}</span>
       </div>
     </div>
