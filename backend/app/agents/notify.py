@@ -20,6 +20,7 @@ from app.services import criteria, messenger, repo
 NAME = "메신저 전송 에이전트"
 RECORD_NAME = "장애이력 등록"
 KST = ZoneInfo("Asia/Seoul")
+MAX_SOLVED_CASES = 2          # 메시지 「과거 해결 사례」에 넣는 건수 (유사도 높은 순)
 
 
 def detail_url(incident_id: int) -> str:
@@ -64,6 +65,7 @@ def compose(db, inc: dict, sev: dict, consult: dict, primary: list[dict], second
     env = inc.get("env_info") or {}
     env_txt = " / ".join(f"{k}: {v}" for k, v in env.items() if v) or "-"
     solved = [c for c in (sev.get("similar_cases") or []) if c.get("status") == "해결"]
+    solved = sorted(solved, key=lambda c: c.get("similarity") or 0, reverse=True)[:MAX_SOLVED_CASES]
     if solved:
         cases = []
         for c in solved:
