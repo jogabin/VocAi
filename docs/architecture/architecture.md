@@ -180,6 +180,7 @@ LLM 응답이 채택되고 유형 상담 자료(`type_cases.json`)가 있을 때
 - 결과는 `detection.p1_decision`(처리 방향 `route`, 근거 문장 `reason`, 등급 상한 `cap`, 하한 `floor`, 확인 필요 여부 `need_check`)에 담기고, 심각도 단계가 읽어 등급에 적용합니다(3.4).
 - 유형 상담(`type_cases.json`)은 새 상담과 문자열 유사도가 높은 순으로 정렬해 목록 전체를 AI에 줍니다. 파일에 「벡터 검색은 상담이 늘어날 때 적용할 예정」이라고 적혀 있고 지금은 순서만 매깁니다(`backend/app/services/type_cases.py`).
 - 두 자료 파일은 첫 줄에 「초안 — 팀 확인 전」이라고 적혀 있습니다. 확정된 기준이 아니라 현업 확인을 반영한 초안입니다. 파일이 없거나 깨지면 빈 목록으로 동작합니다.
+- 이 판정은 팀의 「상담 검증 프로세스」(현업이 확인한 유형 상담 준비 → 새 상담 → 유형 상담 비교 → AI 판별 → 현업 확인 → 유형 상담에 반영) 가운데 앞 세 단계를 코드로 옮긴 것입니다. 현업 확인과 반영은 사람이 하는 단계라 화면이나 자동 반영 기능이 없고, `type_cases.json` 을 직접 고쳐 다시 배포해야 합니다. 두 자료는 서버가 처음 한 번 읽어 메모리에 두므로(`lru_cache`) 고친 뒤에는 서버를 다시 띄워야 반영됩니다. 이 순환으로 판별 정확도가 좋아졌다는 측정 결과는 없습니다.
 
 중복 통합 규칙(`backend/app/agents/dedup.py`, `backend/app/services/repo.py`)
 
@@ -687,7 +688,7 @@ polling은 화면이 일정 간격으로 서버에 다시 물어 보는 방식�
 | 상담요약 초안은 요청 안에서 LLM을 동기로 부릅니다. 서버의 LLM 제한 시간(`LLM_TIMEOUT_SEC` 기본값)이 화면 요청 제한 시간(axios 10초)보다 깁니다. LLM이 10초 넘게 걸리면 화면은 실패 문구를 보이고 서버 쪽 결과는 버려집니다. | `backend/app/database.py`, `frontend/src/api/http.js`, `frontend/src/views/ConsultRegisterView.vue` |
 | LLM을 쓰면 LLM이 돌려준 등급이 규칙 결과를 대체합니다(대규모 신호 규칙이 우선하고, 감지 보강 판정의 상한·하한은 LLM 등급에도 적용됩니다). 규칙 단독 결과와 LLM 결과는 다를 수 있습니다. | `backend/app/agents/severity.py` |
 | 규칙 기반 경로는 `rules.py` 의 한국어 키워드·정규식 사전에 의존합니다. | `backend/app/agents/rules.py` |
-| 감지 보강 판정의 자료(`type_cases.json`, `p1_graph.json`)는 「초안 — 팀 확인 전」 상태입니다. 유형 상담은 목록 전체를 정렬해 AI 프롬프트에 넣으므로 유형이 늘면 프롬프트도 길어집니다. LLM이 꺼져 있거나 실패하면 이 판정은 하지 않고 규칙 판정만 씁니다. | `backend/app/data/`, `backend/app/services/type_cases.py`, `backend/app/agents/detection.py` |
+| 감지 보강 판정의 자료(`type_cases.json`, `p1_graph.json`)는 「초안 — 팀 확인 전」 상태입니다. 유형 상담은 목록 전체를 정렬해 AI 프롬프트에 넣으므로 유형이 늘면 프롬프트도 길어집니다. LLM이 꺼져 있거나 실패하면 이 판정은 하지 않고 규칙 판정만 씁니다. 자료를 고치는 화면이 없어 파일을 직접 고쳐 다시 배포해야 합니다. | `backend/app/data/`, `backend/app/services/type_cases.py`, `backend/app/agents/detection.py` |
 | 주소에 경로 없이 들어오면 `/stt`(상담현황)로 읽는데, 상담현황 권한이 없는 IT담당자는 권한 안내 카드가 먼저 보이고 장애 알림 모니터로 가는 링크가 함께 나오는 것으로 읽힙니다. `App.vue` 주석은 「IT담당자 → 장애 알림 모니터」로 가는 것으로 적혀 있습니다. 실행해 확인하지는 않았습니다. | `frontend/src/composables/useHashRoute.js`, `frontend/src/App.vue` |
 | 첫 실행 때 빈 DB를 자동 초기화하는 `init_if_empty` 에는 잠금이 없습니다. 인스턴스 여러 개가 동시에 빈 DB로 시작하면 어떻게 되는지는 확인 못 함. 반면 `DB_RESET_TOKEN` 초기화는 DB 잠금(advisory lock)을 씁니다. | `backend/app/db_init.py` |
 | `init_if_empty` 는 `voc_user` 테이블이 없을 때만 동작합니다. 이미 DB가 있는 환경에는 새 SQL(예: 09~13)이 자동으로 적용되지 않습니다. 적용하려면 `scripts/init_db.py`(여러 번 실행해도 됨)를 실행하거나 `DB_RESET_TOKEN` 으로 초기화(데이터 삭제)해야 합니다. | `backend/app/db_init.py`, `backend/scripts/init_db.py` |
