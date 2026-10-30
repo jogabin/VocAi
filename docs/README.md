@@ -11,9 +11,10 @@
 | 1 | 시스템이 어떻게 생겼나 | [아키텍처](architecture/architecture.md) |
 | 2 | 무엇을 만들기로 했나 | [범위](requirements/scope.md) → [요건정의서](requirements/requirements.md) → 탭별 요건 [tabs/](requirements/tabs/) |
 | 3 | 요건 중 무엇이 구현됐나 | [요건 대비 구현 현황](requirements/vocai-status.md) |
-| 4 | 왜 이렇게 정했나 | [결정 기록](adr/README.md) |
-| 5 | 요건·설계 문서를 어떤 흐름과 도구로 만들었나 | [SDD 한눈에 보기](guide/sdd.md) |
-| 6 | 배포하고 운영하는 법 | [배포와 운영](deploy/deploy.md) |
+| 4 | 화면은 어떤 규칙으로 만들었나 | [화면 규칙](design/style-guide.md) · [화면 캡처](design/screens/) |
+| 5 | 왜 이렇게 정했나 | [결정 기록](adr/README.md) |
+| 6 | 요건·설계 문서를 어떤 흐름과 도구로 만들었나 | [SDD 한눈에 보기](guide/sdd.md) |
+| 7 | 배포하고 운영하는 법 | [배포와 운영](deploy/deploy.md) |
 
 ## 폴더
 
@@ -22,11 +23,12 @@
 | `adr/` | 결정 기록. 무엇을 고민했고, 어떤 안을 비교했고, 왜 골랐는지 |
 | `requirements/` | 범위(`scope.md`), 요건정의서(`requirements.md`), 탭별 요건(`tabs/`), 요건 대비 구현 현황(`vocai-status.md`) |
 | `architecture/` | 아키텍처. 에이전트 흐름, 데이터, API, 권한, 설정값 |
+| `design/` | 화면 규칙(`style-guide.md`)과 화면 캡처(`screens/`) |
 | `deploy/` | 배포와 운영 |
 | `guide/` | SDD(스펙 주도 개발) 흐름과 개발 에이전트 한눈에 보기 |
 
 개발 단계는 인터뷰와 요건 → 아키텍처·디자인 → 스펙 → 구현 계획 → 구현 → 검증 → 배포입니다([ADR-002](adr/ADR-002-dev-flow-and-agents.md)).  
-이 저장소에는 그중 요건·아키텍처·배포 문서가 있습니다. 디자인·스펙·구현 계획·검증 문서는 아직 없습니다([ADR-009](adr/ADR-009-build-without-spec-agents.md)).
+이 저장소에는 그중 요건·아키텍처·디자인(화면 규칙)·배포 문서가 있습니다. 스펙·구현 계획·검증 문서는 아직 없습니다([ADR-009](adr/ADR-009-build-without-spec-agents.md)).
 
 ## 문서 상태
 
@@ -37,7 +39,7 @@
 |---|---|
 | 범위, 요건정의서, 탭 1~6 요건 | 확인 대기 |
 | 탭 7(성과측정) 요건 | 확정 |
-| 요건 대비 구현 현황, 아키텍처, 배포와 운영 | 확인 대기. 구현된 코드를 읽고 정리한 것이며 앱을 실행해 확인한 것은 아닙니다 |
+| 요건 대비 구현 현황, 아키텍처, 화면 규칙, 배포와 운영 | 확인 대기. 구현된 코드를 읽고 정리한 것이며 앱을 실행해 확인한 것은 아닙니다 |
 | ADR | 모두 채택. 목록은 [adr/README.md](adr/README.md) |
 
 ## 읽을 때 알아 둘 것
