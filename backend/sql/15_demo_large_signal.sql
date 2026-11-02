@@ -6,6 +6,7 @@
 --     PR_P1_LG_1  : 1.신분증촬영반복_1_사전등록(상담사_정하나)   고객 노예린 (등록 기능이 상담이력 등록 + 에이전트 실행)
 --     PR_P1_LG_2  : 2.신분증촬영반복_2_사전등록(상담사_이수진)   고객 백서현 (등록 기능이 상담이력 등록 + 에이전트 실행)
 --     PR_P1_LG_3  : 3.신분증촬영반복_3_시연중등록(상담사_박지훈) 고객 엄소율 (상담현황만, 시연 때 등록 → 독립 고객 3명, 대규모 장애 신호)
+--   PR_P1 이 2차 수신자(과거 유사 장애 처리자)에게도 알림이 가도록 과거 해결 사례 1건(가상)을 함께 넣습니다.
 --   통화는 모두 '진행'으로 넣고, PR_P1_LG_1·2 의 상담완료 처리는 app/demo_data.py 가 합니다.
 --   같은 장애로 묶이려면 60분 안에 이어서 등록해야 하므로, 시연 직전에 등록하세요.
 --   다시 실행하면 이 4건(예전 PR_P1_LG_4 포함)과 그 상담으로 생긴 상담이력·에이전트 실행·장애를 지우고 새로 넣습니다.
@@ -40,6 +41,39 @@ UPDATE agent_run SET incident_id = NULL WHERE incident_id IN (SELECT incident_id
 DELETE FROM incident_alert WHERE incident_id IN (SELECT incident_id FROM demo_ls_incident);   -- 처리 이력·임베딩 함께 삭제
 DELETE FROM stt_call WHERE call_id IN ('PR_P1', 'PR_P1_LG_1', 'PR_P1_LG_2', 'PR_P1_LG_3', 'PR_P1_LG_4');  -- 발화 함께 삭제
 DROP TABLE demo_ls_consult, demo_ls_incident, demo_ls_touched;
+
+-- ---------- PR_P1 과거 유사 해결 사례 (가상) ----------
+--   PR_P1 알림의 2차 수신자(비슷한 과거 장애를 처리한 담당자)가 나오도록, 같은 증상을 대외계연계팀 김태호가 처리한 해결 사례.
+--   1차 담당(지급결제운영팀 윤아름·장민호)과 다른 사람이라 2차로 함께 알림을 받습니다. 제목으로 찾아 지우고 다시 넣습니다.
+DELETE FROM messenger_log WHERE incident_id IN (SELECT incident_id FROM incident_alert WHERE title = '[앱] 계좌이체 최종 확인 단계 ''일시적으로 서비스를 이용할 수 없습니다'' 오류');
+UPDATE agent_run SET incident_id = NULL WHERE incident_id IN (SELECT incident_id FROM incident_alert WHERE title = '[앱] 계좌이체 최종 확인 단계 ''일시적으로 서비스를 이용할 수 없습니다'' 오류');
+UPDATE improvement_opinion SET related_incident_id = NULL
+ WHERE related_incident_id IN (SELECT incident_id FROM incident_alert WHERE title = '[앱] 계좌이체 최종 확인 단계 ''일시적으로 서비스를 이용할 수 없습니다'' 오류');
+DELETE FROM incident_alert WHERE title = '[앱] 계좌이체 최종 확인 단계 ''일시적으로 서비스를 이용할 수 없습니다'' 오류';
+
+INSERT INTO incident_alert (title, error_type, channel, severity, status, report_count, customer_count, symptoms, env_info,
+                            analysis, notified_severity, resolution, first_reported_at, last_reported_at, resolved_at,
+                            created_at, updated_at, owner_emp_id, resolved_by_emp_id)
+SELECT '[앱] 계좌이체 최종 확인 단계 ''일시적으로 서비스를 이용할 수 없습니다'' 오류', '이체', '앱', 'P1', '해결', 3, 3,
+       '앱 계좌이체 화면에서 마지막 확인을 누르면 ''일시적으로 서비스를 이용할 수 없습니다'' 문구가 나오고 이체가 되지 않음. 앱을 다시 켜도 같고 인터넷뱅킹도 같은 오류.',
+       '{"os": "iOS", "device": "아이폰 15", "error_message": "일시적으로 서비스를 이용할 수 없습니다"}'::jsonb,
+       '계좌이체 최종 확인(승인 요청) 단계에서만 실패해 대외계 연계 구간을 우선 점검. 같은 시간대 앱·인터넷뱅킹 모두 실패.',
+       'P1',
+       '대외계 연계 게이트웨이의 이체 승인 요청 연결이 모두 사용 중이어서 최종 확인 단계에서 응답 시간 초과 발생. 게이트웨이 연결을 다시 시작하고 동시 연결 수를 늘린 뒤 정상화, 실패한 거래는 고객에게 다시 시도하도록 안내.',
+       now() - interval '5 days', now() - interval '5 days' + interval '25 minutes', now() - interval '5 days' + interval '2 hours 40 minutes',
+       now() - interval '5 days', now() - interval '5 days' + interval '2 hours 40 minutes',
+       (SELECT emp_id FROM employee WHERE emp_name = '윤아름' AND emp_group <> '상담사' LIMIT 1),
+       (SELECT emp_id FROM employee WHERE emp_name = '김태호' AND emp_group <> '상담사' LIMIT 1);
+
+INSERT INTO incident_action (incident_id, process_status, status_before, status_after, content, emp_id, actor_login, actor_name, created_at)
+SELECT i.incident_id, v.ps, v.b, v.a, v.c, e.emp_id, lower(e.emp_no), e.emp_name, i.first_reported_at + v.t
+  FROM incident_alert i
+  JOIN employee e ON e.emp_id = i.resolved_by_emp_id
+  CROSS JOIN (VALUES
+    ('진행중', '접수', '확인중', '확인 착수: 이체 최종 확인 단계 오류, 대외계 연계 게이트웨이 응답 시간 점검', interval '30 minutes'),
+    ('처리완료', '확인중', '해결', '대외계 연계 게이트웨이의 이체 승인 요청 연결이 모두 사용 중이어서 최종 확인 단계에서 응답 시간 초과 발생. 게이트웨이 연결을 다시 시작하고 동시 연결 수를 늘린 뒤 정상화, 실패한 거래는 고객에게 다시 시도하도록 안내.', interval '2 hours 40 minutes')
+  ) AS v(ps, b, a, c, t)
+ WHERE i.title = '[앱] 계좌이체 최종 확인 단계 ''일시적으로 서비스를 이용할 수 없습니다'' 오류';
 
 -- ---------- 시연 고객 (가상, 없을 때만) ----------
 INSERT INTO customer (customer_id, customer_name, gender, age) VALUES

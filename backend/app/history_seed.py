@@ -1,13 +1,13 @@
-"""시연용 과거 상담 데이터: 2026-10-15 ~ 2026-10-28, 하루 20건
+"""시연용 과거 상담 데이터: 넣는 날의 전날까지 14일, 하루 20건 (예: 11/3에 초기화하면 10/20 ~ 11/2)
 
-  - 10/15 ~ 10/27 : 상담완료(상담이력 등록) → 에이전트 실행 이력 → 등급 정의에 따라 장애알림 정보 등록
+  - 14일 모두 : 상담완료(상담이력 등록) → 에이전트 실행 이력 → 등급 정의에 따라 장애알림 정보 등록
       P1  : 같은 장애를 고객 3명이 연달아 제보 → 대규모 장애 신호로 자동 알림 → IT담당자 진행중 → 처리완료
       P2  : 관찰 등록 → 센터관리자 확인 후 IT담당자 지정 수동 알림(→ 대기중) → IT담당자 처리완료, 또는 알림 없이 미대상 종결
       P3·P4 : 미대상 자동 종결 (관찰 대상이 아닌 등급)
       고객 실수 : 관찰 등록 → 센터관리자가 오탐으로 종결 (2차 오탐 대조 사례)
       메신저는 내용만 기록 (실제 발송 없음, MOCK)
-  - 10/28        : 같은 방식으로 상담완료까지 (시연 통화는 따로 등록해 쓰므로 진행 중인 통화는 남기지 않음)
-대본은 app/history_scenarios.py. 날짜별 난수 시드를 고정해 다시 만들어도 같은 데이터가 나옵니다.
+  - 마지막 날(전날)까지 상담완료 (시연 통화는 따로 등록해 쓰므로 진행 중인 통화는 남기지 않음)
+대본은 app/history_scenarios.py. 'N일째' 기준으로 난수 시드를 고정해, 넣는 날짜가 달라도 내용은 같고 날짜만 옮겨집니다.
 에이전트를 실제로 돌리지 않고 같은 형식의 결과를 기록합니다 (과거 시각으로 남기기 위해).
 
 DB 초기화(init_schema) 때 SQL 파일 다음에 실행되며, 이미 들어 있으면 건너뜁니다.
@@ -27,10 +27,10 @@ from app.services import criteria, repo
 log = logging.getLogger(__name__)
 
 KST = ZoneInfo("Asia/Seoul")
-START, LAST = date(2026, 10, 15), date(2026, 10, 28)
+DAYS = 14                                     # 넣는 날의 전날까지 14일
+SEED_BASE = date(2026, 10, 15)                # 난수 시드 기준 (N일째 → 이 날짜의 N일 뒤로 시드를 잡아 내용 고정)
 PER_DAY = 20
-P1_DAYS = {date(2026, 10, 16): 0, date(2026, 10, 19): 1, date(2026, 10, 22): 2, date(2026, 10, 25): 3,
-           date(2026, 10, 28): 4}
+P1_DAYS = {1: 0, 4: 1, 7: 2, 10: 3, 13: 4}   # N일째(0부터) → P1 대본 번호
 AGENTS = ["이수진", "박지훈", "정하나"]
 REGISTERED_BY = {"이수진": "user01"}          # 로그인 계정이 있는 상담사. 그 밖에는 admin 이 등록
 BASE = {"이체": "P2", "인증": "P2", "로그인": "P2", "조회": "P3", "UI오류": "P3", "기타": "P4"}
@@ -48,6 +48,12 @@ GIVEN = [("민준", "남"), ("서연", "여"), ("지훈", "남"), ("하은", "�
          ("지민", "여"), ("시우", "남"), ("채원", "여"), ("주원", "남"), ("유나", "여"), ("건우", "남"), ("다은", "여"),
          ("현우", "남"), ("소율", "여"), ("지호", "남"), ("서윤", "여"), ("준서", "남"), ("하린", "여"), ("우진", "남"),
          ("지아", "여"), ("선호", "남"), ("예린", "여"), ("태윤", "남"), ("나연", "여"), ("동현", "남"), ("세아", "여")]
+
+
+def _period() -> tuple[date, date]:
+    """(첫날, 마지막 날=전날) — 한국 날짜 기준."""
+    last = datetime.now(KST).date() - timedelta(days=1)
+    return last - timedelta(days=DAYS - 1), last
 
 
 def _kst(d: date, hh: int, mm: int, ss: int = 0) -> datetime:
@@ -69,8 +75,9 @@ def _fill(s: str, slots: dict) -> str:
 
 
 class _Loader:
-    def __init__(self, db):
+    def __init__(self, db, period: tuple[date, date] | None = None):
         self.db = db
+        self.start, self.last = period or _period()
         self.cr = criteria.load(db, use_cache=False)
         emps = repo._rows(db.execute(text("SELECT * FROM employee WHERE use_yn ORDER BY emp_id")))
         self.emp_by_name = {e["emp_name"]: e for e in emps}
@@ -103,16 +110,22 @@ class _Loader:
         return out
 
     # ------------------------------------------------------------------ 하루치 상담 계획
+    def _seed_day(self, d: date) -> date:
+        """난수·대본 선택용 날짜: N일째면 SEED_BASE + N일 (넣는 날짜가 달라도 같은 내용)."""
+        return SEED_BASE + (d - self.start)
+
     def _plan(self, d: date) -> list[dict]:
-        rng = random.Random(d.toordinal())
+        sd = self._seed_day(d)
+        nth = (d - self.start).days
+        rng = random.Random(sd.toordinal())
         calls = []
-        if d in P1_DAYS:
-            sc = S.P1[P1_DAYS[d]]
+        if nth in P1_DAYS:
+            sc = S.P1[P1_DAYS[nth]]
             base = _kst(d, rng.randint(9, 14), rng.choice([5, 15, 25, 35]))
             for i, gap in enumerate([0, rng.randint(11, 18), rng.randint(26, 38)]):
                 calls.append({"kind": "P1", "sc": sc, "at": base + timedelta(minutes=gap), "nth": i})
         picks = (("P2", rng.sample(S.P2, 3)), ("P3", rng.sample(S.P3, 3)), ("P4", rng.sample(S.P4, 1)),
-                 ("FP", rng.sample(S.FP, 1)), ("IMP", rng.sample(S.IMP, 1) if d.toordinal() % 2 == 0 else []))
+                 ("FP", rng.sample(S.FP, 1)), ("IMP", rng.sample(S.IMP, 1) if sd.toordinal() % 2 == 0 else []))
         for kind, scs in picks:
             calls += [{"kind": kind, "sc": sc} for sc in scs]
         gens = rng.sample(S.GEN, len(S.GEN))
@@ -128,7 +141,7 @@ class _Loader:
         people = rng.sample(self.customers, len(calls))
         for i, c in enumerate(calls):
             c["cust"] = people[i]
-            c["agent"] = AGENTS[(d.toordinal() + i) % len(AGENTS)]
+            c["agent"] = AGENTS[(sd.toordinal() + i) % len(AGENTS)]
             dev, os_ = rng.choice(S.DEVICES)
             pc_os, browser = rng.choice(S.PCS)
             c["slots"] = {"agent": c["agent"], "device": dev, "ver": rng.choice(S.APP_VERSIONS),
@@ -137,7 +150,7 @@ class _Loader:
             c["env"] = ({"os": os_, "device": dev, "app_version": c["slots"]["ver"]} if c["sc"].get("channel") == "앱"
                         else {"os": pc_os, "device": "PC", "browser": browser} if c["sc"].get("channel") == "웹" else {})
             c["call_id"] = f"CALL-{d:%m%d}-{i + 1:02d}"
-        if d in P1_DAYS:                            # P1 대본은 하루 1건이라 같은 증상 슬롯을 3명이 공유
+        if nth in P1_DAYS:                          # P1 대본은 하루 1건이라 같은 증상 슬롯을 3명이 공유
             first = next(c for c in calls if c["kind"] == "P1")
             for c in calls:
                 if c["kind"] == "P1":
@@ -294,8 +307,8 @@ class _Loader:
 
     def _resolve(self, inc: dict, sc: dict, slots: dict, start: datetime, work_min: tuple[int, int],
                  resolve_min: tuple[int, int], rng: random.Random) -> None:
-        """알림을 받은 IT담당자: 진행중 → 처리완료(해결). 마지막 날 다음 날 오전을 넘기지 않게 맞춤."""
-        limit = _kst(LAST + timedelta(days=1), 11, 30)
+        """알림을 받은 IT담당자: 진행중 → 처리완료(해결). 마지막 날 다음 날(오늘) 오전, 그리고 지금을 넘기지 않게 맞춤."""
+        limit = min(_kst(self.last + timedelta(days=1), 11, 30), datetime.now(KST) - timedelta(minutes=5))
         emp = self._staff(sc["error_type"], rng)
         t1 = min(start + timedelta(minutes=rng.randint(*work_min)), limit - timedelta(minutes=30))
         t2 = min(t1 + timedelta(minutes=rng.randint(*resolve_min)), limit)
@@ -547,10 +560,11 @@ class _Loader:
         self.counts["improvements"] += 1
 
     # ------------------------------------------------------------------ 실행
-    def load(self) -> dict:
-        d = START
-        while d <= LAST:
-            rng = random.Random(d.toordinal() * 7)
+    def load(self, results: bool = True) -> dict:
+        """results=False 면 통화·상담이력만 넣음 (에이전트 결과는 scripts/build_demo_snapshot.py 가 실제 에이전트로 만듦)."""
+        d = self.start
+        while d <= self.last:
+            rng = random.Random(self._seed_day(d).toordinal() * 7)
             calls = self._plan(d)
             done = True                        # 모든 날짜를 상담완료까지 (진행 중 통화 없음)
             for c in calls:
@@ -558,6 +572,7 @@ class _Loader:
             if done:
                 for c in calls:
                     self._insert_consult(c)
+            if done and results:
                 p1 = [c for c in calls if c["kind"] == "P1"]
                 for c in calls:
                     if c["kind"] == "GEN":
@@ -575,7 +590,7 @@ class _Loader:
 
 def load_if_needed(db) -> dict | None:
     """과거 상담 데이터가 없으면 넣는다. 넣은 건수 반환 (이미 있으면 None)."""
-    if db.execute(text("SELECT 1 FROM stt_call WHERE call_id LIKE 'CALL-1015-%' LIMIT 1")).first():
+    if db.execute(text("SELECT 1 FROM stt_call WHERE call_id ~ '^CALL-[0-9]{4}-[0-9]{2}$' LIMIT 1")).first():
         return None
     counts = _Loader(db).load()
     db.commit()

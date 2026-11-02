@@ -106,7 +106,8 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
                "candidates": [], "window_min": settings.dedup_window_min, "recovered": recovered}
         ctx["dedup"] = out
         return "DONE", f"정상 진행 확인 {recovered[:3]} → 미해결 장애 누적에서 제외, 별도 관찰 건으로 등록", out
-    candidates = repo.find_open_incidents(db, det["error_type"], settings.dedup_window_min)
+    at = consult.get("created_at")                # 기준 시각: 상담 등록 시각 (실시간 등록이면 지금과 같음)
+    candidates = repo.find_open_incidents(db, det["error_type"], settings.dedup_window_min, at)
     scored = sorted(((_score(det, ctx["customer_text"], c), c) for c in candidates),
                     key=lambda x: x[0], reverse=True)
     compared = [{"incident_id": c["incident_id"], "title": c["title"], "score": s} for s, c in scored[:5]]
@@ -135,7 +136,7 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
         "report_count": count,
         "customer_count": customers,
         "mass_signal": bool(inc.get("mass_signal")) or mass,
-        "last_reported_at": datetime.now(timezone.utc),
+        "last_reported_at": at or datetime.now(timezone.utc),
         "env_info": env,
     })
 

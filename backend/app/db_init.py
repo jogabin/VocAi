@@ -93,7 +93,10 @@ def init_schema(reset: bool = False) -> str:
         raise
     finally:
         raw.close()
-    if load_history():
+    if SNAPSHOT.exists():
+        if not _has_history():                        # 새로 넣은 시드일 때만 (이미 쓰던 DB는 그대로)
+            load_snapshot()
+    elif load_history():
         complete_seed_calls()                         # 새로 넣은 시드일 때만 (이미 쓰던 DB의 진행 중 통화는 그대로)
     return mode
 
@@ -108,6 +111,9 @@ DEMO_TABLES = [
     "agent_step", "agent_run", "improvement_opinion", "messenger_log", "incident_embedding",
     "incident_action", "incident_report", "incident_alert", "consult_history", "stt_utterance", "stt_call",
 ]
+# 시연 초기 데이터 스냅샷: 과거 이력·시드 통화를 실제 에이전트로 판별한 결과 (scripts/build_demo_snapshot.py 로 만듦).
+# 있으면 초기화 때 이 파일로 시연 표를 채우고, 없으면 과거 이력 생성기(history_seed) + 시드 통화 상태만 완료 처리.
+SNAPSHOT = ROOT / "sql" / "16_demo_snapshot.sql"
 DEMO_SQL_FILES = [
     "02_seed.sql",                 # 시연 통화 · 발화 · 과거 장애 (업무 담당자는 비어 있을 때만)
     "06_consult_agent.sql",        # 시연 장애의 담당자 · 처리자 연결
@@ -146,6 +152,8 @@ def reset_demo_data(by: str) -> dict:
         cur.execute("TRUNCATE " + ", ".join(DEMO_TABLES) + " RESTART IDENTITY")
         for name in DEMO_SQL_FILES:
             cur.execute((ROOT / "sql" / name).read_text(encoding="utf-8"))
+        if SNAPSHOT.exists():
+            _load_snapshot(cur)                       # 시드 SQL은 기본 직원·고객을 되살리는 데만 쓰고 시연 표는 스냅샷으로
         _meta_table(cur)
         info = {"at": datetime.now(timezone.utc).isoformat(), "by": by}
         cur.execute("INSERT INTO app_meta (key, value) VALUES ('demo_reset', %s) "
@@ -156,16 +164,41 @@ def reset_demo_data(by: str) -> dict:
         raise
     finally:
         raw.close()
-    load_history()
-    complete_seed_calls()
+    if not SNAPSHOT.exists():
+        load_history()
+        complete_seed_calls()
     with engine.connect() as cn:
         counts = {t: cn.execute(text(f"SELECT count(*) FROM {t}")).scalar()
                   for t in ("stt_call", "consult_history", "incident_alert")}
     return {**info, "counts": counts}
 
 
+def _load_snapshot(cur) -> None:
+    """시연 표를 비우고 스냅샷으로 채움 (마지막 날이 오늘의 전날이 되도록 날짜를 옮겨서)."""
+    cur.execute("TRUNCATE " + ", ".join(DEMO_TABLES) + " RESTART IDENTITY")
+    cur.execute(SNAPSHOT.read_text(encoding="utf-8"))
+    log.info("시연 초기 데이터 스냅샷 불러옴: %s", SNAPSHOT.name)
+
+
+def load_snapshot() -> None:
+    raw = engine.raw_connection()
+    try:
+        _load_snapshot(raw.cursor())
+        raw.commit()
+    except Exception:
+        raw.rollback()
+        raise
+    finally:
+        raw.close()
+
+
+def _has_history() -> bool:
+    with engine.connect() as cn:
+        return bool(cn.execute(text("SELECT 1 FROM stt_call WHERE call_id ~ '^CALL-[0-9]{4}-[0-9]{2}$' LIMIT 1")).first())
+
+
 def load_history() -> dict | None:
-    """시연용 과거 상담 데이터 (2026-10-15 ~ 10-28, 하루 20건). 넣은 건수 반환, 이미 있으면 건너뛰고 None."""
+    """시연용 과거 상담 데이터 (전날까지 14일, 하루 20건). 넣은 건수 반환, 이미 있으면 건너뛰고 None."""
     from app import history_seed
     from app.database import SessionLocal
     with SessionLocal() as db:

@@ -327,13 +327,14 @@ def count_incident_customers(db: Session, incident_id: int) -> int:
     """), {"iid": incident_id}).scalar() or 0)
 
 
-def recent_incidents_for_link(db: Session, days: int) -> list[dict]:
-    """개선의견과 연결할 최근 장애 (오탐 제외)."""
+def recent_incidents_for_link(db: Session, days: int, at=None) -> list[dict]:
+    """개선의견과 연결할 최근 장애 (오탐 제외). at: 기준 시각(상담 등록 시각, 없으면 지금)."""
     return _rows(db.execute(text("""
         SELECT incident_id, title, symptoms, status FROM incident_alert
-         WHERE status <> '오탐' AND last_reported_at >= now() - make_interval(days => :d)
+         WHERE status <> '오탐'
+           AND last_reported_at >= coalesce(CAST(:at AS timestamptz), now()) - make_interval(days => :d)
          ORDER BY last_reported_at DESC LIMIT 200
-    """), {"d": days}))
+    """), {"d": days, "at": at}))
 
 
 def create_improvement(db: Session, data: dict) -> dict:
@@ -361,14 +362,15 @@ def list_improvements(db: Session, date_from=None, date_to=None, limit: int = 10
     """), params))
 
 
-def find_open_incidents(db: Session, error_type: str, window_min: int) -> list[dict]:
+def find_open_incidents(db: Session, error_type: str, window_min: int, at=None) -> list[dict]:
+    """at 기준 최근 window_min 분 안의 같은 유형 미해결 장애. at: 상담 등록 시각(없으면 지금)."""
     return _rows(db.execute(text("""
         SELECT * FROM incident_alert
          WHERE error_type = :et
            AND status IN ('관찰', '접수', '확인중', '미대상')       -- 미대상도 추가 제보가 쌓이면 재판정
-           AND last_reported_at >= now() - make_interval(mins => :win)
+           AND last_reported_at >= coalesce(CAST(:at AS timestamptz), now()) - make_interval(mins => :win)
          ORDER BY last_reported_at DESC
-    """), {"et": error_type, "win": window_min}))
+    """), {"et": error_type, "win": window_min, "at": at}))
 
 
 def search_knowledge(db: Session, error_type: str | None = None) -> list[dict]:

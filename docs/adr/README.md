@@ -23,3 +23,4 @@
 | [013](ADR-013-demo-data-reset.md) | 시연 데이터는 재배포 없이 화면에서 초기화한다 | 채택 | 2026-10-30 |
 | [014](ADR-014-startup-sql-updates.md) | 기존 DB에 꼭 반영할 SQL은 서버 시작 때 한 번만 적용한다 | 채택 | 2026-10-30 |
 | [015](ADR-015-same-cause-grouping-and-p1-cap.md) | 같은 원인 제보는 AI 판단으로 묶고, 단독 제보의 P1은 조건이 확인될 때만 준다 | 채택 | 2026-11-02 |
+| [016](ADR-016-demo-snapshot-from-real-agent.md) | 시연 초기 데이터는 실제 에이전트 판별 결과를 스냅샷 SQL로 저장해 불러온다 | 채택 | 2026-11-03 |

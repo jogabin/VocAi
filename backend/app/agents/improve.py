@@ -17,9 +17,9 @@ RELATED_MIN_SIMILARITY = 0.12
 RELATED_DAYS = 30
 
 
-def _related_incident(db, customer_text: str) -> tuple[dict | None, float]:
+def _related_incident(db, customer_text: str, at=None) -> tuple[dict | None, float]:
     best, best_sim = None, 0.0
-    for inc in repo.recent_incidents_for_link(db, RELATED_DAYS):
+    for inc in repo.recent_incidents_for_link(db, RELATED_DAYS, at):
         sim = rules.similarity(customer_text, f"{inc['title']} {inc.get('symptoms') or ''}")
         if sim > best_sim:
             best, best_sim = inc, sim
@@ -64,7 +64,7 @@ def summarize(consult: dict, customer_text: str, title: str | None) -> tuple[str
 def run(db, ctx: dict) -> tuple[str, str, dict]:
     det, consult = ctx["detection"], ctx["consult"]
     text = ctx.get("customer_text") or ""
-    related, sim = _related_incident(db, text)
+    related, sim = _related_incident(db, text, consult.get("created_at"))
     content, source = summarize(consult, text, det.get("title"))
     row = repo.create_improvement(db, {
         "consult_id": consult["consult_id"],

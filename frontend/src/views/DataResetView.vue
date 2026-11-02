@@ -108,7 +108,7 @@ onMounted(load)
           <p v-if="runError" class="err">{{ runError }}</p>
           <div class="form-actions">
             <button class="btn btn-primary btn-lg danger" type="button" :disabled="!canRun" @click="run">
-              {{ running ? '초기화 중… (30초 정도 걸립니다)' : '시연 데이터 초기화' }}
+              {{ running ? '초기화 중… (몇 초 걸립니다)' : '시연 데이터 초기화' }}
             </button>
           </div>
           <div v-if="done" class="ok">
