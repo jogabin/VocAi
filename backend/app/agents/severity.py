@@ -14,6 +14,9 @@
 적용한 기준 버전과 규칙코드를 결과에 남겨 장애에 기록합니다.
 장애감지 단계의 판정(det['p1_decision']: 유형 상담·상담사 해결·P1 지도)은 등급의 상한(P1 제외)·하한(장애 후보 최소 P2)으로
 반영하고, P1 확인 대상이면 LLM 프롬프트에 P1 관계 지도를 함께 줍니다. 대규모 장애 신호(독립 고객 3명)는 상한보다 우선합니다.
+최상위 등급(P1)은 판별기준의 조정 규칙(기한 임박·금전 피해 같은 키워드 규칙)이 올렸거나 대규모 장애 신호일 때만 줍니다.
+그 밖에 감지 후보·AI 판단만으로 P1이 된 대규모 신호 전 제보는 한 단계 아래(P2 관찰)로 두고,
+같은 원인 제보가 쌓여 대규모 신호가 되면 P1로 올려 알립니다 (ADR-015).
 """
 import logging
 
@@ -152,6 +155,35 @@ def _apply_p1_flow(cr, flow: dict, dd: dict, sev: str, reasons: list, applied: l
     return sev
 
 
+def _top_condition(cr, det: dict, text: str) -> str | None:
+    """최상위 등급 조건이 되는 키워드 조정 규칙(기한 임박·금전 피해 등) 중 이번 발화에 걸리는 규칙 코드.
+    (감지 단계에서 이미 P1 후보면 규칙을 적용해도 등급이 그대로라 적용 기록에 안 남으므로 키워드를 직접 확인)"""
+    top = cr.codes()[0]
+    for r in cr.adjust_rules:
+        if r["rule_type"] != "KEYWORD" or (r.get("target_error_type") and r["target_error_type"] != det["error_type"]):
+            continue
+        lifts = (r["action_type"] == "RAISE"
+                 or (r["action_type"] in ("RAISE_TO", "SET_GRADE") and r.get("target_grade") == top))
+        if lifts and rules.match_keyword_groups(text, list(r.get("keywords") or [])):
+            return r["rule_code"]
+    return None
+
+
+def _cap_unconfirmed_top(cr, det: dict, dd: dict, text: str, sev: str, reasons: list, applied: list) -> str:
+    """P1 조건이 확인되지 않은 대규모 신호 전 제보는 최상위 등급을 주지 않음.
+    P1 조건: 키워드 조정 규칙(기한 임박·금전 피해 등) 일치 · 대규모 장애 신호 · 이미 최상위인 장애에 통합."""
+    top = cr.codes()[0]
+    if sev != top or dd.get("mass_signal") or (dd.get("merged") and dd.get("previous_severity") == top):
+        return sev
+    if _top_condition(cr, det, text):
+        return sev
+    capped = cr.codes()[1] if len(cr.codes()) > 1 else top
+    applied.append("P1_UNCONFIRMED")
+    reasons.append(f"[P1 조건 미확인] 기한 임박·금전 피해 규칙이나 대규모 장애 신호 없이 {top} 판단 "
+                   f"(독립 고객 {dd.get('customer_count', 1)}명): {top}→{capped}, 같은 원인 제보가 쌓이면 다시 판정")
+    return capped
+
+
 def run(db, ctx: dict) -> tuple[str, str, dict]:
     det, dd = ctx["detection"], ctx["dedup"]
     text = ctx["customer_text"]
@@ -230,6 +262,8 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
             analysis = ans.get("analysis")
             applied.append("LLM")
             reasons.append(f"LLM: {ans.get('reason', '')}")
+    sev = _cap_unconfirmed_top(cr, det, dd, text, sev, reasons, applied)
+    notify = cr.should_notify(sev, count)
     stage1 = {"severity": sev, "notify": notify}
     reasons.append(f"1차 판별: {sev}({cr.label(sev)}) → " + ("알림 대상" if notify else "알림 미대상"))
 

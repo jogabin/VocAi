@@ -4,6 +4,9 @@
 증상 유사도 + 채널/환경 일치도로 비교해 같은 장애이면 하나로 통합합니다.
 (증상 유사도가 MIN_SYMPTOM_SIMILARITY 미만이면 채널·환경이 같아도 다른 장애로 봅니다.
  재시도 후 정상 진행이 확인된 상담은 미해결 장애에 통합하지 않고 별도 관찰 건으로 둡니다.)
+글자 유사도로 묶이지 않아도, 같은 오류유형·같은 채널의 후보가 있으면 '같은 원인'인지 한 번 더 봅니다 (ADR-015).
+  - LLM 사용 시: 증상 표현이 달라도 같은 계기(예: 같은 앱 업데이트 후)로 같은 기능이 실패하는지 AI가 판단
+  - LLM 미사용·실패 시: 양쪽 모두 같은 계기(업데이트 등)를 말하고, 앱 버전이 둘 다 있으면 같을 때만 같은 원인으로 봄
 통합된 장애의 독립 고객 수(같은 고객의 재문의·중복 등록은 1명)가 기준(판별기준 MASS_SIGNAL 규칙, 기본 3명) 이상이면
 대규모 장애 신호(mass_signal)로 등록하고,
 이 건수는 장애 알림 모니터의 '동일유형 장애' 건수에 집계됩니다.
@@ -11,13 +14,23 @@
 """
 from datetime import datetime, timezone
 
-from app.agents import rules
+import re
+
+from app.agents import llm, rules
 from app.database import settings
 from app.services import criteria, repo
 
 NAME = "중복제보 통합 에이전트"
 MERGE_THRESHOLD = 0.30
 MIN_SYMPTOM_SIMILARITY = 0.20   # 채널·환경 가산점만으로 다른 증상이 묶이지 않도록 증상 유사도 자체의 최소값
+TRIGGER = re.compile(r"업데이트|업그레이드|새 버전|신규 버전")   # 같은 원인으로 볼 공통 계기 (규칙 판단용)
+
+SAME_CAUSE_SYSTEM = """당신은 금융 앱 장애 제보를 묶는 에이전트입니다.
+새 제보와 최근 60분 안의 미해결 장애 후보들을 보고, 새 제보가 어느 후보와 '같은 원인의 장애'인지 고르세요.
+같은 원인: 같은 기능(예: 로그인)이 같은 계기(예: 오늘 같은 앱 업데이트 이후, 같은 시간대부터) 뒤로 실패하는 경우입니다.
+고객마다 보이는 증상(반응 없음, 로딩 계속, 화면 되돌아감, 앱 종료 등)이 달라도 같은 원인일 수 있습니다.
+기능이 다르거나, 계기·시점 단서가 서로 맞지 않거나, 고객 실수로 보이면 같은 원인이 아닙니다. 확실하지 않으면 null 로 하세요.
+출력 JSON: {"incident_id": 후보 장애 ID 숫자 또는 null, "reason": "판단 근거 한 문장"}"""
 
 
 def _symptom_similarity(det: dict, customer_text: str, inc: dict) -> float:
@@ -37,6 +50,38 @@ def _score(det: dict, customer_text: str, inc: dict) -> float:
         if env_new.get(key) and env_new.get(key) == env_old.get(key):
             bonus += 0.1
     return round(min(1.0, base + bonus), 3)
+
+
+def _same_cause(det: dict, customer_text: str, candidates: list[dict]) -> tuple[dict | None, str]:
+    """글자 유사도로 묶이지 않은 후보 중 같은 원인의 장애 (장애, 판단 근거). 같은 채널 후보만 봄."""
+    pool = [c for c in candidates if not det.get("channel") or not c.get("channel") or c["channel"] == det["channel"]]
+    if not pool:
+        return None, ""
+    if llm.enabled():
+        lines = [f"- ID {c['incident_id']} ({repo.incident_no(c['incident_id'])}) {c['title']} / 채널 {c.get('channel')}"
+                 f" / 환경 {c.get('env_info') or {}}\n  증상: {(c.get('symptoms') or '')[:200]}" for c in pool[:5]]
+        ans = llm.ask_json(SAME_CAUSE_SYSTEM, f"""[새 제보]
+오류유형 {det['error_type']} / 채널 {det.get('channel')} / 환경 {det.get('env') or {}}
+증상: {det.get('symptoms')}
+고객 발화: {customer_text[:600]}
+
+[후보 장애]
+""" + "\n".join(lines), max_tokens=300)
+        if ans is not None:
+            pick = next((c for c in pool if str(c["incident_id"]) == str(ans.get("incident_id"))), None)
+            return pick, f"AI 같은 원인 판단: {ans.get('reason') or '-'}" if pick else ""
+    # 규칙: 둘 다 같은 계기를 말하고, 앱 버전이 양쪽에 있으면 같을 때만
+    if not TRIGGER.search(customer_text):
+        return None, ""
+    ver = (det.get("env") or {}).get("app_version")
+    for c in pool:
+        if not TRIGGER.search(f"{c.get('title') or ''} {c.get('symptoms') or ''}"):
+            continue
+        old = (c.get("env_info") or {}).get("app_version")
+        if ver and old and ver != old:
+            continue
+        return c, "같은 계기(업데이트 후) · 같은 채널" + (f" · 앱 {ver}" if ver and old else "")
+    return None, ""
 
 
 def _recovered_words(db, customer_text: str) -> list[str]:
@@ -66,7 +111,13 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
                     key=lambda x: x[0], reverse=True)
     compared = [{"incident_id": c["incident_id"], "title": c["title"], "score": s} for s, c in scored[:5]]
 
-    if not scored or scored[0][0] < MERGE_THRESHOLD:
+    cause = ""
+    if scored and scored[0][0] >= MERGE_THRESHOLD:
+        score, inc = scored[0]
+    else:
+        inc, cause = _same_cause(det, ctx["customer_text"], candidates) if candidates else (None, "")
+        score = next((s for s, c in scored if inc and c["incident_id"] == inc["incident_id"]), 0.0)
+    if not inc:
         out = {"merged": False, "incident_id": None, "report_count": 1, "customer_count": 1, "mass_signal": False,
                "candidates": compared, "window_min": settings.dedup_window_min}
         ctx["dedup"] = out
@@ -74,7 +125,6 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
                "유사 장애 없음, 신규 장애로 판단")
         return "DONE", msg, out
 
-    score, inc = scored[0]
     count = int(inc["report_count"]) + 1
     repo.add_incident_report(db, inc["incident_id"], consult["consult_id"], score)
     customers = repo.count_incident_customers(db, inc["incident_id"])
@@ -92,9 +142,10 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
     out = {"merged": True, "incident_id": inc["incident_id"], "similarity": score, "report_count": count,
            "customer_count": customers, "mass_signal": mass, "previous_severity": inc["severity"],
            "notified_severity": inc.get("notified_severity"), "previous_status": inc["status"],
-           "candidates": compared, "window_min": settings.dedup_window_min}
+           "candidates": compared, "window_min": settings.dedup_window_min, "same_cause": cause or None}
     ctx["dedup"] = out
-    msg = f"장애 {repo.incident_no(inc['incident_id'])}에 동일 제보로 통합 (유사도 {score}, 누적 {count}건 · 독립 고객 {customers}명)"
+    basis = cause if cause else f"유사도 {score}"
+    msg = f"장애 {repo.incident_no(inc['incident_id'])}에 동일 제보로 통합 ({basis}, 누적 {count}건 · 독립 고객 {customers}명)"
     if mass:
         msg += f" → 대규모 장애 신호 (기준 독립 고객 {threshold}명 이상) · 모니터 '동일유형 장애' 건수에 등록"
     out["same_type_registered"] = mass

@@ -24,12 +24,12 @@ _lock = threading.Lock()
 
 # 시연 시나리오 4건. pre=True 는 등록 기능이 상담이력 등록 + 에이전트 실행까지 (시연 전 사전 제보)
 SCENARIOS = [
-    {"call_id": "PR_P1_LG_1", "source": "대규모 신호 1 · 앱 로그인 E-1032 (앱 7.4.0)", "title": "앱 업데이트 후 로그인 오류 (같은 증상 1번째 고객)",
+    {"call_id": "PR_P1_LG_1", "source": "1.신분증촬영반복_1_사전등록(상담사_정하나).xlsx", "title": "앱 계좌 개설 신분증 촬영 반복 실패 (1번째 고객)",
      "pre": True, "consult": {"consult_type": "전산오류문의", "channel": "앱", "result_status": "이관"}},
-    {"call_id": "PR_P1_LG_2", "source": "대규모 신호 2 · 앱 로그인 E-1032 (앱 7.4.0)", "title": "앱 업데이트 후 로그인 오류 (같은 증상 2번째 고객)",
+    {"call_id": "PR_P1_LG_2", "source": "2.신분증촬영반복_2_사전등록(상담사_이수진).xlsx", "title": "같은 증상 2번째 고객",
      "pre": True, "consult": {"consult_type": "전산오류문의", "channel": "앱", "result_status": "이관"}},
     {"call_id": "PR_P1", "source": "1.상담대화_PR_P1.xlsx", "title": "이체 지급 기한 임박 · 대체수단 없음", "pre": False},
-    {"call_id": "PR_P1_LG_3", "source": "대규모 신호 3 · 앱 로그인 E-1032 (앱 7.4.0)", "title": "같은 증상 3번째 고객 → 대규모 장애 신호", "pre": False},
+    {"call_id": "PR_P1_LG_3", "source": "3.신분증촬영반복_3_시연중등록(상담사_박지훈).xlsx", "title": "같은 증상 3번째 고객 → 대규모 장애 신호", "pre": False},
 ]
 IDS = [s["call_id"] for s in SCENARIOS]
 
