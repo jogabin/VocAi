@@ -3,7 +3,8 @@
 대규모 장애 신호 시연 4건(sql/15_demo_large_signal.sql)을 넣습니다.
   1. SQL 실행: 이전에 등록한 같은 통화와 그 상담으로 생긴 데이터를 지우고, 4건을 '진행' 통화로 다시 넣음
   2. 사전 제보 2건(PR_P1_LG_1 · PR_P1_LG_2)은 상담이력을 등록하고 장애 알림 에이전트를 실제로 실행해 상담완료로 둠
-     (상담이력 등록 화면과 같은 흐름. LLM 설정이 있으면 사용하므로 1분 정도 걸릴 수 있음)
+     (상담이력 등록 화면과 같은 흐름. LLM 설정이 있으면 사용하므로 1분 정도 걸릴 수 있음.
+      이때 나오는 메신저 알림은 실제로 보내지 않고, 발송 이력도 지워 시연 때 3번째 제보에서 알림이 나가게 함)
   3. 나머지 2건(PR_P1 · PR_P1_LG_3)은 상담현황에 '진행'으로 남겨 시연 때 상담이력을 등록
 같은 증상 제보는 60분 안에 이어져야 하나의 장애로 묶이므로 시연 직전에 등록합니다.
 """
@@ -21,14 +22,14 @@ log = logging.getLogger(__name__)
 SQL_FILE = Path(__file__).resolve().parent.parent / "sql" / "15_demo_large_signal.sql"
 _lock = threading.Lock()
 
-# 시나리오 엑셀 4건. pre=True 는 등록 기능이 상담이력 등록 + 에이전트 실행까지 (시연 전 사전 제보)
+# 시연 시나리오 4건. pre=True 는 등록 기능이 상담이력 등록 + 에이전트 실행까지 (시연 전 사전 제보)
 SCENARIOS = [
-    {"call_id": "PR_P1_LG_1", "file": "2.상담대화_PR_P1_LG_대규모1.xlsx", "title": "앱 인증 후 다시 인증 화면 (같은 증상 1번째 고객)",
+    {"call_id": "PR_P1_LG_1", "source": "대규모 신호 1 · 앱 로그인 E-1032 (앱 7.4.0)", "title": "앱 업데이트 후 로그인 오류 (같은 증상 1번째 고객)",
      "pre": True, "consult": {"consult_type": "전산오류문의", "channel": "앱", "result_status": "이관"}},
-    {"call_id": "PR_P1_LG_2", "file": "3.상담대화_PR_P1_LG__대규모2.xlsx", "title": "앱 인증 후 다시 인증 화면 (같은 증상 2번째 고객)",
+    {"call_id": "PR_P1_LG_2", "source": "대규모 신호 2 · 앱 로그인 E-1032 (앱 7.4.0)", "title": "앱 업데이트 후 로그인 오류 (같은 증상 2번째 고객)",
      "pre": True, "consult": {"consult_type": "전산오류문의", "channel": "앱", "result_status": "이관"}},
-    {"call_id": "PR_P1", "file": "1.상담대화_PR_P1.xlsx", "title": "이체 지급 기한 임박 · 대체수단 없음", "pre": False},
-    {"call_id": "PR_P1_LG_3", "file": "4.상담대화_PR_P1_LG__대규모3.xlsx", "title": "같은 증상 3번째 고객 → 대규모 장애 신호", "pre": False},
+    {"call_id": "PR_P1", "source": "1.상담대화_PR_P1.xlsx", "title": "이체 지급 기한 임박 · 대체수단 없음", "pre": False},
+    {"call_id": "PR_P1_LG_3", "source": "대규모 신호 3 · 앱 로그인 E-1032 (앱 7.4.0)", "title": "같은 증상 3번째 고객 → 대규모 장애 신호", "pre": False},
 ]
 IDS = [s["call_id"] for s in SCENARIOS]
 
@@ -74,7 +75,9 @@ def register(by: str) -> list[dict]:
             raw.close()
         log.warning("시연 데이터 등록 (%s): %s", by, ", ".join(IDS))
 
-        delay, settings.agent_step_delay_sec = settings.agent_step_delay_sec, 0   # 화면 연출용 단계 지연 없이 실행
+        # 화면 연출용 단계 지연 없이 실행하고, 사전 제보의 알림은 실제로 보내지 않고 기록만 (시연 전에 담당자에게 알림이 가지 않게)
+        saved = (settings.agent_step_delay_sec, settings.messenger_provider, settings.messenger_webhook_url)
+        settings.agent_step_delay_sec, settings.messenger_provider, settings.messenger_webhook_url = 0, "mock", ""
         try:
             with SessionLocal() as db:
                 for s in [s for s in SCENARIOS if s["pre"]]:
@@ -86,8 +89,21 @@ def register(by: str) -> list[dict]:
                     repo.complete_call(db, call["call_id"])                    # 상담진행 → 상담완료
                     db.commit()
                     pipeline.execute(pipeline.start_run(db, consult["consult_id"]), consult["consult_id"])
+                # 사전 제보가 알림 대상(P1 등)으로 나와도 발송 이력은 지움: 시연 때 3번째 제보의 알림이
+                # '이미 발송된 장애'로 생략되지 않고 실제로 나가도록 (등급·장애 정보는 에이전트 결과 그대로)
+                pre_ids = [s["call_id"] for s in SCENARIOS if s["pre"]]
+                db.execute(text("""
+                    WITH inc AS (SELECT DISTINCT r.incident_id FROM incident_report r
+                                   JOIN consult_history h ON h.consult_id = r.consult_id WHERE h.call_id = ANY(:ids))
+                    DELETE FROM messenger_log WHERE incident_id IN (SELECT incident_id FROM inc)"""), {"ids": pre_ids})
+                db.execute(text("""
+                    UPDATE incident_alert SET notified_severity = NULL
+                     WHERE incident_id IN (SELECT r.incident_id FROM incident_report r
+                                             JOIN consult_history h ON h.consult_id = r.consult_id WHERE h.call_id = ANY(:ids))"""),
+                           {"ids": pre_ids})
+                db.commit()
         finally:
-            settings.agent_step_delay_sec = delay
+            settings.agent_step_delay_sec, settings.messenger_provider, settings.messenger_webhook_url = saved
         return status()
     finally:
         _lock.release()

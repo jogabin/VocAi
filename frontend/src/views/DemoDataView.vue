@@ -56,7 +56,7 @@ onMounted(load)
     <div class="page-head">
       <div>
         <h2>시연 데이터 등록</h2>
-        <p>대규모 장애 신호 시연용 상담 4건을 등록합니다. 사전 제보 2건은 상담이력 등록과 에이전트 판별까지 마쳐 두고, 나머지 2건은 시연 때 상담이력을 등록하도록 상담현황에 남깁니다.</p>
+        <p>대규모 장애 신호 시연용 상담 4건을 등록합니다. 사전 제보 2건은 상담이력 등록과 에이전트 판별까지 마쳐 두고(메신저 알림은 보내지 않음), 나머지 2건은 시연 때 상담이력을 등록하도록 상담현황에 남깁니다.</p>
       </div>
       <div class="toolbar">
         <button class="btn btn-primary" type="button" :disabled="running" @click="run">
@@ -82,7 +82,7 @@ onMounted(load)
           <tbody>
             <tr v-for="i in items" :key="i.call_id" :class="{ link: i.registered }" @click="open(i)">
               <td class="mono nowrap">{{ i.call_id }}</td>
-              <td><strong>{{ i.title }}</strong><div class="muted small">{{ i.file }}</div></td>
+              <td><strong>{{ i.title }}</strong><div class="muted small">{{ i.source }}</div></td>
               <td class="nowrap">
                 <span v-if="i.pre" class="badge badge-blue">상담완료 + 에이전트 실행</span>
                 <span v-else class="badge badge-gray">상담현황만 (시연 때 등록)</span>
