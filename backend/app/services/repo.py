@@ -65,6 +65,18 @@ def _date_conds(col: str, date_from, date_to, conds: list, params: dict) -> None
 # =====================================================================
 # STT 원문
 # =====================================================================
+def _run_grade_sql(run_col: str) -> str:
+    """실행(run_col)에서 정한 등급과 감지 분류 (상담현황·모니터 목록의 '등급' 컬럼).
+    severity: 심각도 판별 에이전트가 정한 등급, category: 장애감지의 분류(장애·일반·개선의견) — 등급이 없을 때 표시용"""
+    return f"""
+               (SELECT s.output->>'severity' FROM agent_step s
+                 WHERE s.run_id = {run_col} AND s.output->>'node' = 'severity'
+                 ORDER BY s.seq DESC LIMIT 1) AS severity,
+               (SELECT s.output->>'category' FROM agent_step s
+                 WHERE s.run_id = {run_col} AND s.output->>'node' = 'detect'
+                 ORDER BY s.seq DESC LIMIT 1) AS category"""
+
+
 def list_stt_calls(db: Session, keyword: str | None = None, registered: bool | None = None,
                    limit: int = 50, offset: int = 0, consult_status: str | None = None,
                    date_from=None, date_to=None) -> list[dict]:
@@ -90,11 +102,14 @@ def list_stt_calls(db: Session, keyword: str | None = None, registered: bool | N
                (SELECT u.text FROM stt_utterance u
                  WHERE u.call_id = c.call_id AND u.speaker = 'CUSTOMER'
                  ORDER BY u.seq LIMIT 1) AS preview,
-               (SELECT count(*) FROM stt_utterance u WHERE u.call_id = c.call_id) AS utterance_count
+               (SELECT count(*) FROM stt_utterance u WHERE u.call_id = c.call_id) AS utterance_count,
+               ar.run_id, ar.status AS run_status,{_run_grade_sql("ar.run_id")}
           FROM stt_call c
           LEFT JOIN LATERAL (SELECT consult_id, consult_type, created_at AS consult_created_at, registered_by
                                FROM consult_history h
                               WHERE h.call_id = c.call_id ORDER BY consult_id DESC LIMIT 1) ch ON TRUE
+          LEFT JOIN LATERAL (SELECT run_id, status FROM agent_run r
+                              WHERE r.consult_id = ch.consult_id ORDER BY run_id DESC LIMIT 1) ar ON TRUE
           {where}
          ORDER BY CASE c.consult_status WHEN '진행' THEN 0 ELSE 1 END, c.started_at DESC
          LIMIT :limit OFFSET :offset
@@ -535,7 +550,7 @@ def list_runs(db: Session, limit: int = 20, date_from=None, date_to=None, with_s
     _date_conds("r.started_at", date_from, date_to, conds, params)
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     runs = _rows(db.execute(text(f"""
-        SELECT r.*, h.customer_name, h.call_id, h.summary, h.channel
+        SELECT r.*, h.customer_name, h.call_id, h.summary, h.channel,{_run_grade_sql("r.run_id")}
           FROM agent_run r LEFT JOIN consult_history h ON h.consult_id = r.consult_id
           {where}
          ORDER BY r.run_id DESC LIMIT :limit

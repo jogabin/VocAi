@@ -10,6 +10,7 @@ import StatusBadge from '../components/voc/StatusBadge.vue'
 import { usePager } from '../composables/usePager'
 import { keepListState, listState } from '../composables/useListState'
 import ListPager from '../components/voc/ListPager.vue'
+import RunGrade from '../components/voc/RunGrade.vue'
 
 /* 장애 알림 모니터
    - 상단 건수 박스 5개 (긴급 장애가 있으면 깜빡임)
@@ -36,8 +37,6 @@ const BOXES = [
   { key: 'urgent', label: '긴급 장애', desc: '최상위 등급 · 미처리' },
   { key: 'observing', label: '관찰 (확인 대기)', desc: '알림 미대상 · 센터관리자 확인 필요' },
   { key: 'messaged', label: '메신저 알림 전송', desc: '담당자에게 알림이 나간 장애' },
-  { key: 'same_type', label: '동일유형 장애', desc: '60분 내 동일 유형 다발 (대규모 신호)' },
-  { key: 'resolved', label: '장애 처리 완료', desc: 'IT담당자 처리완료' },
 ]
 
 // 주소에 조건이 없으면(메뉴로 들어옴) 마지막으로 보던 박스·기간
@@ -216,10 +215,11 @@ const ragLabel = computed(() => {
       </div>
       <div class="tbl-wrap">
         <table class="tbl">
-          <thead><tr><th>실행</th><th>시각</th><th>고객</th><th>상태</th><th>결과</th></tr></thead>
+          <thead><tr><th>실행</th><th>등급</th><th>시각</th><th>고객</th><th>상태</th><th>결과</th></tr></thead>
           <tbody>
             <tr v-for="r in runRows" :key="r.run_id" @click="r.call_id && navigate('/consult', { call: r.call_id })">
               <td class="mono">#{{ r.run_id }}</td>
+              <td class="nowrap"><RunGrade :severity="r.severity" :category="r.category" :status="r.status" /></td>
               <td class="nowrap muted">{{ fmtDate(r.started_at) }} {{ fmtTime(r.started_at) }}</td>
               <td class="nowrap">{{ r.customer_name || '-' }} <span class="mono muted small">{{ r.call_id }}</span></td>
               <td><StatusBadge :value="r.status" /></td>
@@ -241,8 +241,8 @@ const ragLabel = computed(() => {
 .dates-label { font-size: 13px; font-weight: 600; color: var(--text-2); margin-right: 2px; }
 .dates input { padding: 5px 10px; }
 
-.boxes { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
-@media (max-width: 1100px) { .boxes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.boxes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+@media (max-width: 1100px) { .boxes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .boxes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .box { font: inherit; text-align: left; cursor: pointer; background: var(--surface); border: 0; border-radius: var(--radius-card); padding: 16px 18px 14px; box-shadow: none; display: flex; flex-direction: column; gap: 4px; position: relative; overflow: hidden; transition: background .15s; }
 .box:hover { background: var(--surface-2); }

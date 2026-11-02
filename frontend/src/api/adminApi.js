@@ -98,3 +98,15 @@ export async function runDemoReset(confirm) {
   const { data } = await http.post('/admin/demo-reset', { confirm }, { timeout: 120000 })
   return data
 }
+
+/* ---------- 시연 데이터 등록 (시스템관리자) ---------- */
+export async function fetchDemoData() {
+  const { data } = await http.get('/admin/demo-data')
+  return data
+}
+
+/** 사전 제보 2건은 에이전트를 실제로 실행하므로 LLM 사용 시 1분 이상 걸릴 수 있음 */
+export async function runDemoData() {
+  const { data } = await http.post('/admin/demo-data', {}, { timeout: 300000 })
+  return data
+}

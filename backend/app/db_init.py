@@ -93,7 +93,8 @@ def init_schema(reset: bool = False) -> str:
         raise
     finally:
         raw.close()
-    load_history()
+    if load_history():
+        complete_seed_calls()                         # 새로 넣은 시드일 때만 (이미 쓰던 DB의 진행 중 통화는 그대로)
     return mode
 
 
@@ -156,18 +157,32 @@ def reset_demo_data(by: str) -> dict:
     finally:
         raw.close()
     load_history()
+    complete_seed_calls()
     with engine.connect() as cn:
         counts = {t: cn.execute(text(f"SELECT count(*) FROM {t}")).scalar()
                   for t in ("stt_call", "consult_history", "incident_alert")}
     return {**info, "counts": counts}
 
 
-def load_history() -> None:
-    """시연용 과거 상담 데이터 (2026-10-15 ~ 10-28, 하루 20건). 이미 있으면 건너뜀."""
+def load_history() -> dict | None:
+    """시연용 과거 상담 데이터 (2026-10-15 ~ 10-28, 하루 20건). 넣은 건수 반환, 이미 있으면 건너뛰고 None."""
     from app import history_seed
     from app.database import SessionLocal
     with SessionLocal() as db:
-        history_seed.load_if_needed(db)
+        return history_seed.load_if_needed(db)
+
+
+def complete_seed_calls() -> int:
+    """시드로 넣은 '진행' 통화를 상담완료 상태로만 바꾼다 (상담이력 · 에이전트 실행은 만들지 않음).
+
+    시연 통화는 따로 등록해 쓰므로 시드 통화(02_seed.sql · 11_demo_scripts.sql)는 진행 중으로 남기지 않는다.
+    """
+    with engine.begin() as cn:
+        n = cn.execute(text("""UPDATE stt_call SET consult_status = '상담완료',
+                                    completed_at = started_at + duration_sec * interval '1 second'
+                                WHERE consult_status = '진행'""")).rowcount
+    log.info("시드 통화 상담완료 처리: %d건", n)
+    return n
 
 
 def reset_users() -> None:

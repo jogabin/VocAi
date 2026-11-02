@@ -3,6 +3,7 @@ import StatusBadge from './StatusBadge.vue'
 import { incidentNo } from '../../utils/format'
 
 const props = defineProps({ run: { type: Object, required: true }, compact: Boolean })
+const emit = defineEmits(['select'])   // 실행된 단계의 [동작 도식] → 그래프 아래 단계 도식 말풍선
 
 // LangGraph 실행 경로에 따라 실제 실행된 노드만 표시 (실행 중이면 다음 단계 대기 행 추가)
 function stepsWithPending() {
@@ -49,6 +50,7 @@ function fpText(o) {
           <strong>{{ s.agent_name }}</strong>
           <StatusBadge v-if="['RUNNING', 'DONE', 'SKIPPED', 'FAILED'].includes(s.status)" :value="s.status" />
           <span v-if="s.elapsed_ms != null && s.status !== 'RUNNING'" class="ms">{{ (s.elapsed_ms / 1000).toFixed(1) }}s</span>
+          <button v-if="!compact && s.output" class="flow-link" type="button" @click="emit('select', s)">동작 도식 ›</button>
         </div>
         <p class="msg">{{ s.message }}</p>
         <div v-if="!compact && s.output && s.output.stt_analysis" class="sub-analysis">
@@ -91,6 +93,8 @@ function fpText(o) {
 .sub-analysis .hit { background: var(--p2-soft); color: var(--p2); }
 .sub-analysis .miss { background: var(--p4-soft); color: var(--p4); }
 .sub-analysis em { font-style: normal; color: var(--text-3); word-break: keep-all; }
+.flow-link { font: inherit; font-size: 12px; font-weight: 600; border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0 2px; margin-left: auto; }
+.flow-link:hover { text-decoration: underline; }
 .compact li { padding-bottom: 8px; }
 .compact .msg { font-size: 12px; }
 .spin { width: 12px; height: 12px; border: 2px solid var(--accent); border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }

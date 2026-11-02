@@ -6,7 +6,7 @@
       P3·P4 : 미대상 자동 종결 (관찰 대상이 아닌 등급)
       고객 실수 : 관찰 등록 → 센터관리자가 오탐으로 종결 (2차 오탐 대조 사례)
       메신저는 내용만 기록 (실제 발송 없음, MOCK)
-  - 10/28(오늘)   : 상담 진행 중인 통화만 (상담이력 등록 시연용)
+  - 10/28        : 같은 방식으로 상담완료까지 (시연 통화는 따로 등록해 쓰므로 진행 중인 통화는 남기지 않음)
 대본은 app/history_scenarios.py. 날짜별 난수 시드를 고정해 다시 만들어도 같은 데이터가 나옵니다.
 에이전트를 실제로 돌리지 않고 같은 형식의 결과를 기록합니다 (과거 시각으로 남기기 위해).
 
@@ -27,7 +27,7 @@ from app.services import criteria, repo
 log = logging.getLogger(__name__)
 
 KST = ZoneInfo("Asia/Seoul")
-START, TODAY = date(2026, 10, 15), date(2026, 10, 28)
+START, LAST = date(2026, 10, 15), date(2026, 10, 28)
 PER_DAY = 20
 P1_DAYS = {date(2026, 10, 16): 0, date(2026, 10, 19): 1, date(2026, 10, 22): 2, date(2026, 10, 25): 3,
            date(2026, 10, 28): 4}
@@ -294,8 +294,8 @@ class _Loader:
 
     def _resolve(self, inc: dict, sc: dict, slots: dict, start: datetime, work_min: tuple[int, int],
                  resolve_min: tuple[int, int], rng: random.Random) -> None:
-        """알림을 받은 IT담당자: 진행중 → 처리완료(해결). 오늘 오전 이후로 넘어가지 않게 맞춤."""
-        limit = _kst(TODAY, 11, 30)
+        """알림을 받은 IT담당자: 진행중 → 처리완료(해결). 마지막 날 다음 날 오전을 넘기지 않게 맞춤."""
+        limit = _kst(LAST + timedelta(days=1), 11, 30)
         emp = self._staff(sc["error_type"], rng)
         t1 = min(start + timedelta(minutes=rng.randint(*work_min)), limit - timedelta(minutes=30))
         t2 = min(t1 + timedelta(minutes=rng.randint(*resolve_min)), limit)
@@ -549,10 +549,10 @@ class _Loader:
     # ------------------------------------------------------------------ 실행
     def load(self) -> dict:
         d = START
-        while d <= TODAY:
+        while d <= LAST:
             rng = random.Random(d.toordinal() * 7)
             calls = self._plan(d)
-            done = d < TODAY
+            done = True                        # 모든 날짜를 상담완료까지 (진행 중 통화 없음)
             for c in calls:
                 self._insert_call(c, done)
             if done:

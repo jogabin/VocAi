@@ -15,6 +15,8 @@
 데이터 초기화 (시스템관리자 전용)
 - GET   /admin/demo-reset          마지막 시연 데이터 초기화 기록 · 현재 건수
 - POST  /admin/demo-reset          시연 데이터 초기화 (confirm="초기화" 를 보내야 실행)
+- GET   /admin/demo-data           대규모 장애 신호 시연 데이터 4건의 현재 상태
+- POST  /admin/demo-data           시연 데이터 등록 (사전 제보 2건은 상담이력 등록 + 에이전트 실행까지)
 """
 from typing import Literal
 
@@ -22,7 +24,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
-from app import db_init
+from app import db_init, demo_data
 from app.database import DB, engine
 from app.services import auth
 
@@ -310,3 +312,22 @@ def run_demo_reset(body: DemoResetIn, admin: auth.SysAdminUser):
     except Exception as e:
         raise HTTPException(500, f"초기화하지 못했습니다. 다른 화면의 조회가 끝난 뒤 다시 시도하세요. ({str(e).splitlines()[0]})")
     return {**result, "counts": _demo_counts()}
+
+
+# =====================================================================
+# 시연 데이터 등록 (시스템관리 > 시연 데이터 등록)
+# =====================================================================
+@router.get("/admin/demo-data", summary="대규모 장애 신호 시연 데이터 4건의 현재 상태 (시스템관리자)")
+def get_demo_data(_: auth.SysAdminUser):
+    return {"items": demo_data.status()}
+
+
+@router.post("/admin/demo-data", summary="시연 데이터 등록: 4건을 다시 넣고 사전 제보 2건은 상담이력 등록 + 에이전트 실행 (시스템관리자)")
+def run_demo_data(admin: auth.SysAdminUser):
+    try:
+        items = demo_data.register(admin["login_id"])
+    except RuntimeError as e:
+        raise HTTPException(409, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"시연 데이터를 등록하지 못했습니다. ({str(e).splitlines()[0]})")
+    return {"items": items}

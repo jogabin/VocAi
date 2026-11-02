@@ -2,7 +2,9 @@
 import { computed } from 'vue'
 
 // LangGraph 그래프(app/agents/graph.py)와 같은 구조의 흐름도. run 을 넘기면 실행 경로를 하이라이트
-const props = defineProps({ run: { type: Object, default: null } })
+// 실행된 노드를 누르면 select(step, x) — 단계 도식 말풍선용 (x: 노드 가로 위치 0~1, selected: 열린 단계 seq)
+const props = defineProps({ run: { type: Object, default: null }, selected: { type: Number, default: null } })
+const emit = defineEmits(['select'])
 
 const NAME_TO_NODE = {
   '장애감지 에이전트': 'detect',
@@ -58,6 +60,8 @@ const nodeState = (id) => {
   if (!s) return 'idle'
   return { RUNNING: 'running', DONE: 'done', SKIPPED: 'done', FAILED: 'failed' }[s.status] || 'idle'
 }
+const stepOf = (id) => [...steps.value].reverse().find((x) => x.node === id)
+const pick = (id) => { const s = stepOf(id); if (s) emit('select', s, NODES[id].x / 970) }
 const edgeOn = (e) => {
   const i = path.value.indexOf(e.from)
   return i >= 0 && path.value[i + 1] === e.to
@@ -102,7 +106,10 @@ const edges = computed(() => EDGES.map((e) => ({ ...e, ...edgePath(e), on: edgeO
       <text v-if="e.label" :x="e.lx" :y="e.ly" class="edge-label" :class="{ on: e.on }" text-anchor="middle">{{ e.label }}</text>
     </g>
 
-    <g v-for="(n, id) in NODES" :key="id" class="node" :class="['st-' + nodeState(id), n.kind]">
+    <g v-for="(n, id) in NODES" :key="id" class="node" :class="['st-' + nodeState(id), n.kind, { clickable: stepOf(id), sel: selected != null && stepOf(id)?.seq === selected }]"
+       :role="stepOf(id) ? 'button' : null" :tabindex="stepOf(id) ? 0 : null"
+       @click="pick(id)" @keydown.enter="pick(id)">
+      <title v-if="stepOf(id)">눌러서 {{ n.label }} 동작 도식 보기</title>
       <template v-if="n.kind === 'terminal'">
         <rect :x="n.x - 26" :y="n.y - 16" width="52" height="32" rx="16" />
         <text :x="n.x" :y="n.y + 4" text-anchor="middle" class="t-label">{{ n.label }}</text>
@@ -135,5 +142,8 @@ const edges = computed(() => EDGES.map((e) => ({ ...e, ...edgePath(e), on: edgeO
 .st-failed rect { fill: var(--p1-soft); stroke: var(--p1); stroke-dasharray: none; }
 .terminal.st-idle rect { fill: var(--surface-2); }
 .st-idle:not(.terminal) rect { fill: var(--surface); }
+.sel rect { stroke: var(--accent); stroke-width: 3; }
+.clickable { cursor: pointer; outline: none; }
+.clickable:hover rect, .clickable:focus-visible rect { stroke-width: 2.6; filter: drop-shadow(0 2px 6px rgba(25, 31, 40, .18)); }
 @keyframes glow { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: .35; } }
 </style>

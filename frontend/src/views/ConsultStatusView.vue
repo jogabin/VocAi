@@ -6,6 +6,7 @@ import { usePolling } from '../composables/usePolling'
 import { usePager } from '../composables/usePager'
 import { keepListState } from '../composables/useListState'
 import ListPager from '../components/voc/ListPager.vue'
+import RunGrade from '../components/voc/RunGrade.vue'
 import { fmtDate, fmtDateTime, fmtDuration } from '../utils/format'
 
 /* 상담현황 목록: 조회 기간(통화 시작일)의 상담 진행 중인 통화와 상담완료 통화를 실시간(5초)으로 표시.
@@ -28,6 +29,7 @@ const updatedAt = ref(null)
 /* 컬럼 정렬: 머리글을 누르면 오름차순 → 다시 누르면 내림차순 (처음엔 서버 순서) */
 const COLUMNS = [
   { key: 'consult_status', label: '상담상태' },
+  { key: 'severity', label: '등급' },              // 상담완료 건의 에이전트 판별 등급 (없으면 정상·개선의견)
   { key: 'call_id', label: '통화 ID' },
   { key: 'customer_id', label: '고객번호' },
   { key: 'customer_name', label: '고객명' },
@@ -142,6 +144,7 @@ usePolling(load, 5000)   // 화면 진입 시 즉시 1회 + 5초마다
                 <span v-if="c.consult_status === '진행'" class="badge badge-blue"><span class="dot pulse" /> 진행</span>
                 <span v-else class="badge badge-gray">상담완료</span>
               </td>
+              <td class="nowrap"><RunGrade :severity="c.severity" :category="c.category" :status="c.run_status" /></td>
               <td class="mono">{{ c.call_id }}</td>
               <td class="mono muted">{{ c.customer_id }}</td>
               <td class="nowrap"><strong>{{ c.customer_name }}</strong></td>
@@ -150,7 +153,7 @@ usePolling(load, 5000)   // 화면 진입 시 즉시 1회 + 5초마다
               <td class="nowrap muted">{{ fmtDuration(c.duration_sec) }}</td>
               <td><div class="ellipsis">{{ c.preview }}</div></td>
               <td class="nowrap">
-                <button v-if="c.consult_id" class="btn btn-sm btn-done" type="button" @click.stop="open(c)">등록완료</button>
+                <button v-if="c.consult_id || c.consult_status === '상담완료'" class="btn btn-sm btn-done" type="button" @click.stop="open(c)">등록완료</button>
                 <span v-else class="go">등록하기 →</span>
               </td>
             </tr>

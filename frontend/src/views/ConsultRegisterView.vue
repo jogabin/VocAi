@@ -10,6 +10,8 @@ import AgentTimeline from '../components/voc/AgentTimeline.vue'
 import AgentGraph from '../components/voc/AgentGraph.vue'
 import StatusBadge from '../components/voc/StatusBadge.vue'
 import RunResultModal from '../components/voc/RunResultModal.vue'
+import CaseSolved from '../components/voc/CaseSolved.vue'
+import StepFlowBubble from '../components/voc/StepFlowBubble.vue'
 
 /* 상담이력등록
    - STT 원문 대화 확인, 시스템관리자는 [원문대화 복사등록]으로 같은 대화를 상담데이터 등록(SCR-10) 화면에 채워 새 상담으로 등록
@@ -83,6 +85,7 @@ async function loadCall(id) {
   run.value = null
   resultFor = null
   showResult.value = false
+  showSolved.value = false
   submitError.value = ''
   callError.value = ''
   if (!id) { call.value = null; return }
@@ -149,6 +152,84 @@ const canSubmit = computed(() => !!call.value && !isDone.value && form.summary.t
 
 /* 판별 결과 팝업: 이 화면에서 등록·재실행한 실행이 끝나면 자동으로 열고, 실행 결과 영역의 버튼으로 다시 열 수 있음 */
 const showResult = ref(false)
+// 단계 도식 말풍선: seq 로 기억해 실행 중 새로 받아 온 단계 결과로 계속 갱신. 같은 단계를 다시 누르면 닫힘
+const NODE_X = { detect: 170, dedup: 370, severity: 570, notify: 780, record: 780, improve: 370 }   // AgentGraph 노드 x (너비 970)
+const flowSeq = ref(null)
+const flowX = ref(0.5)
+const flowStep = computed(() => (run.value?.steps || []).find((s) => s.seq === flowSeq.value) || null)
+function showStep(s) {
+  flowSeq.value = s.seq
+  flowX.value = (NODE_X[s.output?.node] || 485) / 970
+}
+function openStep(s, x) {
+  stopAuto()                                             // 직접 누르면 자동 재생을 멈추고 그 단계만
+  if (flowSeq.value === s.seq) { flowSeq.value = null; return }
+  showStep(s)
+  if (x != null) flowX.value = x
+}
+
+/* 자동 이어 재생: START 부터 END 까지 끝난 단계를 차례로 말풍선에 띄움.
+   말풍선 재생이 끝나면(done) 다음 단계로 넘어가고, 다음 단계가 아직 실행 중이면 끝날 때까지 기다림.
+   재생하는 동안 그래프도 재생한 단계까지만 보여 줘 말풍선과 같은 걸음으로 진행 */
+const HOLD_MS = 300                                      // 결과 카드가 켜진 뒤 다음 단계로 넘어가기 전 멈춤 (말풍선 안에서도 멈춤)
+const autoIdx = ref(null)                                // 재생 중인 단계 순번 (null = 자동 재생 아님)
+const autoWait = ref(false)                              // 다음 단계 결과를 기다리는 중
+let holdTimer = null
+let pendingResult = false                                // 등록·재실행한 실행의 판별 결과 팝업을 아직 안 열었음
+const showSolved = ref(false)                            // END 까지 재생하면 사건 해결 장면
+const doneSteps = computed(() => (run.value?.steps || []).filter((s) => s.status !== 'RUNNING'))
+const autoPlaying = computed(() => autoIdx.value != null)
+
+function startAuto() {
+  stopAuto()
+  showSolved.value = false
+  flowSeq.value = null
+  autoIdx.value = 0
+  autoWait.value = true
+  advanceAuto()
+}
+function stopAuto() {                                    // 중간에 멈추면 미뤄 둔 판별 결과 팝업을 바로 엶
+  clearTimeout(holdTimer)
+  autoIdx.value = null
+  autoWait.value = false
+  if (pendingResult) { pendingResult = false; showResult.value = true }
+}
+function finishAuto() {                                  // END 까지 재생 → 사건 해결 장면 (판별 결과는 장면에서 열기)
+  pendingResult = false
+  stopAuto()
+  showSolved.value = true
+}
+function openResultFromSolved() {
+  showSolved.value = false
+  showResult.value = true
+}
+function advanceAuto() {                                 // autoWait 상태에서 다음 단계가 준비됐으면 띄움
+  if (!autoPlaying.value || !autoWait.value) return
+  const s = doneSteps.value[autoIdx.value]
+  if (s) { autoWait.value = false; showStep(s); return }
+  if (run.value && run.value.status !== 'RUNNING') finishAuto()   // 더 올 단계 없음 → 마지막 말풍선을 둔 채 사건 해결 장면
+}
+function onBubbleDone() {
+  if (!autoPlaying.value || autoWait.value) return
+  holdTimer = setTimeout(() => {
+    autoIdx.value++
+    autoWait.value = true
+    advanceAuto()
+  }, HOLD_MS)
+}
+watch(() => [doneSteps.value.length, run.value?.status], advanceAuto)
+// 새 실행(등록·재실행)이면 처음부터 자동 재생, 다른 통화의 실행이면 닫음
+watch(() => run.value?.run_id, () => {
+  if (run.value?.status === 'RUNNING') startAuto()
+  else { stopAuto(); flowSeq.value = null; showSolved.value = false }
+})
+// 재생 중 그래프: 재생한 단계까지만, 지금 말풍선 단계는 '실행 중'으로 (기다리는 중이면 실제 진행 그대로)
+const graphRun = computed(() => {
+  if (!autoPlaying.value || autoWait.value || !run.value) return run.value
+  const steps = doneSteps.value.slice(0, autoIdx.value + 1)
+  return { ...run.value, status: 'RUNNING', steps: steps.map((s, i) => (i === steps.length - 1 ? { ...s, status: 'RUNNING' } : s)) }
+})
+onBeforeUnmount(() => clearTimeout(holdTimer))
 let resultFor = null                                     // 끝나면 팝업을 열 run_id
 
 async function pollRun(runId) {
@@ -157,7 +238,11 @@ async function pollRun(runId) {
     const r = await fetchAgentRun(runId)
     run.value = r
     if (r.status === 'RUNNING') pollTimer = setTimeout(() => pollRun(runId), 1000)
-    else if (resultFor === r.run_id) { resultFor = null; showResult.value = true }
+    else if (resultFor === r.run_id) {               // 자동 재생 중이면 END 까지 보여 준 뒤 사건 해결 장면에서 이어서 엶
+      resultFor = null
+      if (autoPlaying.value) pendingResult = true
+      else showResult.value = true
+    }
   } catch {
     pollTimer = setTimeout(() => pollRun(runId), 2000)
   }
@@ -314,13 +399,16 @@ onBeforeUnmount(() => clearTimeout(pollTimer))
           <h3>장애 알림 에이전트 실행 과정 <span class="sub">LangGraph{{ run ? ' · run #' + run.run_id : '' }}</span></h3>
           <div class="toolbar">
             <StatusBadge v-if="run" :value="run.status" />
+            <button v-if="run && run.status !== 'RUNNING' && doneSteps.length" class="btn btn-sm btn-ghost" :disabled="autoPlaying" @click="startAuto">{{ autoPlaying ? '재생 중…' : '▶ 처음부터 재생' }}</button>
             <button v-if="isDone && consult && auth.isSysAdmin.value && (!run || run.status !== 'RUNNING')" class="btn btn-sm btn-ghost" @click="rerun">재실행</button>
           </div>
         </div>
         <div class="card-body">
-          <div class="graph-box"><AgentGraph :run="run" /></div>
+          <div class="graph-box"><AgentGraph :run="graphRun" :selected="flowSeq" @select="openStep" /></div>
+          <StepFlowBubble v-if="flowStep" :step="flowStep" :x="flowX" @done="onBubbleDone" @close="stopAuto(); flowSeq = null" />
+          <p v-else-if="run" class="muted graph-tip">그래프의 에이전트를 누르면 그 단계가 어떻게 동작했는지 도식으로 볼 수 있고, [▶ 처음부터 재생]으로 START부터 END까지 이어서 볼 수 있습니다.</p>
           <div v-if="run" class="run-detail">
-            <AgentTimeline :run="run" />
+            <AgentTimeline :run="run" @select="openStep" />
             <div v-if="run.status !== 'RUNNING'" class="run-foot">
               <span class="muted">{{ run.llm_used ? 'LLM(Claude) 분석 사용' : '규칙 기반 분석 (LLM 미사용/실패)' }}</span>
               <span class="foot-actions">
@@ -336,6 +424,8 @@ onBeforeUnmount(() => clearTimeout(pollTimer))
       </section>
     </template>
 
+    <CaseSolved v-if="showSolved && run && run.status !== 'RUNNING'" :run="run"
+                @close="showSolved = false" @result="openResultFromSolved" />
     <RunResultModal v-if="showResult && run && run.status !== 'RUNNING'" :run="run"
                     @close="showResult = false" @open-incident="(id) => navigate('/incident', { id })" />
   </div>
@@ -355,6 +445,7 @@ onBeforeUnmount(() => clearTimeout(pollTimer))
 .draft-info { margin: 6px 0 0; font-size: 12px; color: var(--text-3); }
 .meta { font-size: 12px; color: var(--text-3); margin: 0 0 12px; }
 .graph-card { margin-top: 10px; }
+.graph-tip { margin: 6px 0 0; font-size: 12px; text-align: center; }
 .graph-box { border: 0; border-radius: var(--radius); padding: 10px 12px 4px; background: var(--surface-2); }
 .run-detail { margin-top: 16px; }
 .run-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; margin-top: 4px; flex-wrap: wrap; }
