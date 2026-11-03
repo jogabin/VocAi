@@ -165,7 +165,6 @@ const ACT_MS = 600           // 처리 중 모습 최소 시간 (코멘트가 �
 const RESULT_MS = 500        // 결과 반응 유지
 const END_MS = 600           // 결과 카드에서 멈춤
 const TYPE_MS = 15           // 코멘트 글자 간격
-const MARK = { scan: '🔍', think: '···', send: '📨', found: '!', clear: '✓', cheer: '★' }
 const WHO = { scan: '조회 중', think: '추론 중', send: '전달 중', found: '근거 발견', clear: '확인 완료', cheer: '단계 완료' }
 
 const shown = ref(0)
@@ -192,6 +191,10 @@ async function type(text, my) {
     await wait(TYPE_MS, my)
   }
 }
+/* 코멘트와 콜록이 사이 간격: 오른쪽은 손에 든 소품·반짝이(가운데서 +56px까지)를 가리지 않게,
+   왼쪽은 콜록이 바로 옆 (코멘트가 왼쪽이면 생각 구름을 오른쪽으로 옮김) */
+const SAY_GAP_RIGHT = 62
+const SAY_GAP_LEFT = 46
 function placeOver(i) {                                 // 카드 가운데 위로 이동, 코멘트는 콜록이 옆 (오른쪽이면 왼쪽)
   const el = cardEls[i]
   if (!el || !lane.value) return
@@ -199,7 +202,7 @@ function placeOver(i) {                                 // 카드 가운데 위�
   const r = el.getBoundingClientRect()
   const cx = r.left - box.left + r.width / 2
   const flip = cx > box.width * 0.55
-  pos.value = { left: cx - 34, sayLeft: flip ? null : cx + 40, sayRight: flip ? box.width - cx + 40 : null, flip }
+  pos.value = { left: cx - 34, sayLeft: flip ? null : cx + SAY_GAP_RIGHT, sayRight: flip ? box.width - cx + SAY_GAP_LEFT : null, flip }
 }
 
 async function play() {
@@ -264,14 +267,13 @@ onBeforeUnmount(() => { document.removeEventListener('keydown', onKey); window.r
       <button class="x" type="button" title="닫기" @click="emit('close')">×</button>
     </div>
     <div v-if="cards.length" ref="lane" class="lane">
-      <div :key="'a' + popKey" class="agent" :class="vis" :style="{ left: pos.left + 'px' }">
+      <div :key="'a' + popKey" class="agent" :class="[vis, { flip: pos.flip }]" :style="{ left: pos.left + 'px' }">
         <span class="puff" />
         <div class="fig" :class="mood">
           <img :src="mascot" alt="콜록이" width="72" height="72">
           <span class="prop">{{ prop }}</span>
           <span class="cloud">{{ cloud }}</span>
           <span class="spark s1">✨</span><span class="spark s2">✨</span>
-          <span v-if="MARK[mood]" :key="mood" class="mark">{{ MARK[mood] }}</span>
         </div>
       </div>
       <div v-if="vis" :key="'s' + popKey" class="say" :class="[mood, vis, { flip: pos.flip }]"
@@ -313,7 +315,7 @@ onBeforeUnmount(() => { document.removeEventListener('keydown', onKey); window.r
 
 /* 카드 위 무대: 콜록이가 처리 중인 카드 위로 이동하고, 옆에 분석 코멘트 */
 .lane { position: relative; padding-top: 100px; }
-.agent { position: absolute; top: 22px; width: 76px; height: 76px; z-index: 2; pointer-events: none; opacity: 0; }
+.agent { position: absolute; top: 22px; width: 76px; height: 76px; z-index: 4; pointer-events: none; opacity: 0; }
 .fig { position: relative; width: 76px; height: 76px; }
 .fig img { width: 72px; height: 72px; display: block; margin: 4px 0 0 2px; transform-origin: 50% 100%; }
 /* 나타남 · 사라짐: 카드 위에서 '뿅' 나왔다가 다음 카드로 갈 때 '쏙' 사라짐 */
@@ -325,19 +327,16 @@ onBeforeUnmount(() => { document.removeEventListener('keydown', onKey); window.r
 .puff { position: absolute; left: 50%; top: 58%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; opacity: 0; }
 .agent.show .puff { animation: puff .5s ease-out; }
 @keyframes puff { 0% { opacity: .9; transform: scale(.3); box-shadow: 0 0 0 6px rgba(240, 197, 90, .55), 0 0 0 14px rgba(27, 100, 218, .18); } 100% { opacity: 0; transform: scale(1.5); box-shadow: 0 0 0 1px rgba(240, 197, 90, 0), 0 0 0 2px rgba(27, 100, 218, 0); } }
-.mark { position: absolute; right: -6px; top: -4px; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 12px; display: grid; place-items: center; font-size: 12px; font-weight: 900; color: #fff; z-index: 3; animation: markIn .2s cubic-bezier(.3, 1.6, .5, 1); }
-@keyframes markIn { from { transform: scale(0); } }
-.scan .mark, .send .mark { background: var(--accent); }
-.think .mark { background: #7a5af5; letter-spacing: -1px; }
-.found .mark { background: var(--p1); }
-.clear .mark { background: var(--ok); }
-.cheer .mark { background: #f0c55a; color: #6b4a00; }
 /* 상황별 소품: 조회·발견은 카드 아이콘을 들고, 추론은 생각 구름, 전달은 편지를 날림 */
 .prop { position: absolute; right: -10px; bottom: 6px; font-size: 22px; line-height: 1; filter: drop-shadow(0 2px 3px rgba(25, 31, 40, .2)); opacity: 0; }
 .cloud { position: absolute; left: -40px; top: -16px; width: 46px; height: 38px; border-radius: 50%; background: var(--surface); border: 1.5px solid #d9cffd; display: grid; place-items: center; font-size: 20px; opacity: 0; transform: scale(.4); transition: opacity .25s, transform .25s; box-shadow: 0 3px 8px rgba(122, 90, 245, .15); }
 .cloud::before, .cloud::after { content: ''; position: absolute; border-radius: 50%; background: var(--surface); border: 1.5px solid #d9cffd; }
 .cloud::before { width: 10px; height: 10px; right: -4px; bottom: -6px; }
 .cloud::after { width: 6px; height: 6px; right: -10px; bottom: -12px; }
+/* 코멘트가 왼쪽에 뜰 때는 생각 구름을 오른쪽 위로 */
+.agent.flip .cloud { left: auto; right: -40px; }
+.agent.flip .cloud::before { right: auto; left: -4px; }
+.agent.flip .cloud::after { right: auto; left: -10px; }
 .spark { position: absolute; font-size: 14px; opacity: 0; }
 .spark.s1 { left: -8px; top: 6px; }
 .spark.s2 { right: -14px; top: -2px; }

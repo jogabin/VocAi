@@ -15,7 +15,7 @@ IT담당자(담당자)는 메신저 알림이 나갈 때 지정합니다. (관�
 from zoneinfo import ZoneInfo
 
 from app.database import settings
-from app.services import criteria, messenger, repo
+from app.services import analysis_format, criteria, messenger, repo
 
 NAME = "메신저 전송 에이전트"
 RECORD_NAME = "장애이력 등록"
@@ -96,7 +96,7 @@ def compose(db, inc: dict, sev: dict, consult: dict, primary: list[dict], second
  상담#{consult['consult_id']} {consult.get('customer_name') or ''} 고객 · {consult.get('agent_name') or ''}
 
 ▣ 초기 분석
-{sev.get('analysis') or '-'}
+{analysis_format.message_text(sev.get('analysis'))}
 
 ▣ 과거 해결 사례
 {case_txt}

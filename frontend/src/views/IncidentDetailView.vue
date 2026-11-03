@@ -4,6 +4,7 @@ import { fetchIncident, addIncidentAction, fetchManualNotify, sendManualNotify, 
 import { useHashRoute, navigate } from '../composables/useHashRoute'
 import { useAuth } from '../composables/useAuth'
 import { fmtDateTime, timeAgo, incidentNo, PROCESS_STATUSES, PROCESS_BADGE } from '../utils/format'
+import { structureAnalysis } from '../utils/analysis'
 import SeverityBadge from '../components/voc/SeverityBadge.vue'
 
 /* 장애 상세정보 (#/incident?id=N) - 메신저 알림의 '장애 상세 보기' 링크로도 열림
@@ -99,6 +100,7 @@ async function closeManual() {
     manual.saving = false
   }
 }
+const analysis = computed(() => structureAnalysis(inc.value?.analysis))
 const envRows = computed(() => Object.entries(inc.value?.env_info || {}).filter(([, v]) => v))
 const selectedMsg = computed(() => inc.value?.messages?.[msgIdx.value] || null)
 
@@ -175,38 +177,100 @@ async function submit() {
           <section class="card">
             <div class="card-head"><h3>장애 정보</h3></div>
             <div class="card-body">
-              <dl class="kv wide">
-                <dt>오류유형</dt><dd>{{ inc.error_type }}</dd>
-                <dt>접촉채널</dt><dd>{{ inc.channel || '-' }}</dd>
-                <dt>등급</dt><dd><SeverityBadge :value="inc.severity" /><span v-if="inc.notified_severity" class="muted small"> · 알림 발송 등급 {{ inc.notified_severity }}</span></dd>
-                <dt>누적 제보</dt><dd>{{ inc.report_count }}건</dd>
-                <dt>담당자</dt><dd>{{ inc.owner_name || '-' }}<span v-if="inc.dept" class="muted"> · {{ inc.dept }}</span><span v-if="inc.system_name" class="muted"> · {{ inc.system_name }}</span></dd>
-                <dt>처리자</dt><dd>{{ inc.resolver_name || '-' }}<span v-if="inc.resolved_at" class="muted"> · {{ fmtDateTime(inc.resolved_at) }}</span></dd>
-                <dt>증상</dt><dd>{{ inc.symptoms || '-' }}</dd>
-                <dt>재현 정보</dt>
-                <dd>
-                  <span v-if="!envRows.length" class="muted">-</span>
-                  <span v-for="[k, v] in envRows" :key="k" class="chip">{{ ENV_LABEL[k] || k }}: {{ v }}</span>
-                </dd>
-                <dt>판정 근거</dt>
-                <dd>
-                  <span class="muted small">판별기준 {{ inc.criteria_version || '-' }}</span>
-                  <div><span v-for="r in (inc.applied_rules || [])" :key="r" class="chip mono">{{ r }}</span></div>
-                </dd>
-              </dl>
-              <div class="block-title">초기 분석</div>
-              <pre class="block">{{ inc.analysis || '-' }}</pre>
-              <template v-if="(inc.similar_cases || []).length">
-                <div class="block-title">과거 유사 사례</div>
+              <!-- 요약 타일 -->
+              <div class="stats">
+                <div class="stat">
+                  <div class="stat-label">등급</div>
+                  <div class="stat-val"><SeverityBadge :value="inc.severity" /></div>
+                  <div class="stat-sub">{{ inc.notified_severity ? `알림 발송 ${inc.notified_severity}` : '알림 미발송' }}</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">오류유형</div>
+                  <div class="stat-val">{{ inc.error_type }}</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">접촉채널</div>
+                  <div class="stat-val">{{ inc.channel || '-' }}</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">누적 제보</div>
+                  <div class="stat-val"><span class="stat-num">{{ inc.report_count }}</span>건</div>
+                </div>
+              </div>
+
+              <!-- 담당 -->
+              <div class="people">
+                <div class="person">
+                  <div class="p-main">
+                    <div class="p-role">담당자</div>
+                    <div class="p-name">{{ inc.owner_name || '미지정' }}</div>
+                    <div v-if="inc.dept || inc.system_name" class="p-sub">{{ [inc.dept, inc.system_name].filter(Boolean).join(' · ') }}</div>
+                  </div>
+                </div>
+                <div class="person">
+                  <div class="p-main">
+                    <div class="p-role">처리자</div>
+                    <div class="p-name">{{ inc.resolver_name || '미처리' }}</div>
+                    <div v-if="inc.resolved_at" class="p-sub">{{ fmtDateTime(inc.resolved_at) }} 처리</div>
+                  </div>
+                </div>
+              </div>
+
+              <section class="sec">
+                <div class="sec-title">증상</div>
+                <p class="symptom">{{ inc.symptoms || '-' }}</p>
+              </section>
+
+              <section class="sec">
+                <div class="sec-title">재현 정보</div>
+                <div v-if="!envRows.length" class="muted small">수집된 재현 정보가 없습니다.</div>
+                <div v-else class="env">
+                  <div v-for="[k, v] in envRows" :key="k" class="env-item">
+                    <div class="env-k">{{ ENV_LABEL[k] || k }}</div>
+                    <div class="env-v">{{ v }}</div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="sec">
+                <div class="sec-title">초기 분석</div>
+                <div v-if="!inc.analysis" class="muted">-</div>
+                <div v-else class="analysis">
+                  <div v-if="analysis.causes.length" class="an-sec an-cause">
+                    <div class="an-label">상황 · 추정 원인</div>
+                    <p v-for="(s, i) in analysis.causes" :key="i">{{ s }}</p>
+                  </div>
+                  <div v-if="analysis.checks.length" class="an-sec">
+                    <div class="an-label">점검 항목</div>
+                    <ol class="an-checks">
+                      <li v-for="(s, i) in analysis.checks" :key="i">{{ s }}</li>
+                    </ol>
+                  </div>
+                  <div v-if="analysis.notes.length" class="an-sec">
+                    <div class="an-label">참고</div>
+                    <ul class="an-notes">
+                      <li v-for="(s, i) in analysis.notes" :key="i">{{ s }}</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+              <section v-if="(inc.similar_cases || []).length" class="sec">
+                <div class="sec-title">과거 유사 사례 <span class="sec-count">{{ inc.similar_cases.length }}</span></div>
                 <ul class="cases">
-                  <li v-for="c in inc.similar_cases" :key="c.incident_id">
-                    <a href="#" @click.prevent="navigate('/incident', { id: c.incident_id })">{{ incidentNo(c.incident_id) }} {{ c.title }}</a>
-                    <span class="badge badge-gray">{{ c.status }}</span>
-                    <span class="muted small">유사도 {{ c.similarity }}</span>
-                    <div v-if="c.resolution" class="muted small">{{ c.resolution }}</div>
+                  <li v-for="c in inc.similar_cases" :key="c.incident_id" @click="navigate('/incident', { id: c.incident_id })">
+                    <div class="case-head">
+                      <span class="mono case-no">{{ incidentNo(c.incident_id) }}</span>
+                      <span class="case-title">{{ c.title }}</span>
+                      <span class="badge" :class="c.status === '해결' ? 'badge-green' : 'badge-gray'">{{ c.status }}</span>
+                    </div>
+                    <div v-if="c.resolution" class="case-res">{{ c.resolution }}</div>
+                    <div class="sim">
+                      <span class="sim-bar"><span :style="{ width: Math.round(Math.min(1, c.similarity || 0) * 100) + '%' }" /></span>
+                      <span class="sim-val">유사도 {{ c.similarity }}</span>
+                    </div>
                   </li>
                 </ul>
-              </template>
+              </section>
             </div>
           </section>
 
@@ -392,11 +456,51 @@ async function submit() {
 @media (max-width: 1080px) { .grid-detail { grid-template-columns: 1fr; } }
 .col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .col > .card + .card { margin-top: 0; }
-.kv.wide { grid-template-columns: 90px 1fr; margin-bottom: 14px; }
-.chip { display: inline-block; padding: 1px 7px; margin: 0 4px 3px 0; border-radius: 6px; background: var(--surface-2); border: 0; font-size: 12px; }
-.block-title { font-size: 12px; font-weight: 700; color: var(--text-2); margin: 12px 0 6px; }
-.cases { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
-.cases .badge { margin: 0 4px; }
+/* 장애 정보: 요약 타일 · 담당 · 섹션 */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 720px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat { background: var(--surface-2); border-radius: var(--radius); padding: 12px 14px; min-width: 0; }
+.stat-label { font-size: 12px; color: var(--text-3); margin-bottom: 6px; }
+.stat-val { font-size: 15px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stat-num { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; margin-right: 2px; }
+.stat-sub { font-size: 11.5px; color: var(--text-3); margin-top: 4px; }
+.people { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+@media (max-width: 720px) { .people { grid-template-columns: 1fr; } }
+.person { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 10px 14px; min-width: 0; }
+.p-main { min-width: 0; }
+.p-role { font-size: 11.5px; color: var(--text-3); }
+.p-name { font-size: 14px; font-weight: 700; }
+.p-sub { font-size: 12px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sec { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+/* 단락 제목: 옅은 파랑 바탕의 둥근 꼬리표 */
+.sec-title { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 4px 12px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent-strong); font-size: 13px; font-weight: 700; letter-spacing: -0.01em; }
+.sec-count { font-size: 11.5px; font-weight: 700; color: var(--accent); background: var(--surface); border-radius: 999px; padding: 0 7px; }
+.symptom { margin: 0; font-size: 14px; line-height: 1.65; color: var(--text); }
+.env { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.env-item { background: var(--surface-2); border-radius: var(--radius); padding: 8px 12px; min-width: 0; }
+.env-k { font-size: 11.5px; color: var(--text-3); }
+.env-v { font-size: 13px; font-weight: 600; word-break: break-all; }
+.analysis { display: flex; flex-direction: column; gap: 10px; font-size: 13px; line-height: 1.6; }
+.an-sec { min-width: 0; }
+.an-label { font-size: 11.5px; font-weight: 700; color: var(--text-3, var(--text-2)); margin-bottom: 4px; }
+.an-cause { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0; padding: 8px 12px; }
+.an-cause p { margin: 0; }
+.an-cause p + p { margin-top: 4px; }
+.an-checks { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
+.an-checks li::marker { font-weight: 700; color: var(--accent); }
+.an-notes { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--text-2); display: flex; flex-direction: column; gap: 3px; }
+.cases { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.cases li { border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 10px 14px; cursor: pointer; }
+.cases li:hover { background: var(--surface-2); }
+.case-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.case-no { font-size: 12px; color: var(--accent); font-weight: 700; flex-shrink: 0; }
+.case-title { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.case-res { margin-top: 4px; font-size: 12.5px; color: var(--text-2); line-height: 1.55; }
+.sim { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.sim-bar { flex: 0 0 120px; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.sim-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.sim-val { font-size: 11.5px; color: var(--text-3); }
 .process-card fieldset { border: none; margin: 0; min-width: 0; }
 .process-card textarea { width: 100%; }
 .status-pick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
