@@ -1,9 +1,15 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 // LangGraph 그래프(app/agents/graph.py)와 같은 구조의 흐름도. run 을 넘기면 실행 경로를 하이라이트
 // 실행된 노드를 누르면 select(step, x) — 단계 도식 말풍선용 (x: 노드 가로 위치 0~1, selected: 열린 단계 seq)
-const props = defineProps({ run: { type: Object, default: null }, selected: { type: Number, default: null } })
+// input 을 넘기면 왼쪽 위 빈자리에 '이번 상담' 입력 카드를 그리고 START 로 이음
+//   { live: 등록됨, no: '#1024', callId, customer, type, channel, result, summary, quote }
+const props = defineProps({
+  run: { type: Object, default: null },
+  selected: { type: Number, default: null },
+  input: { type: Object, default: null },
+})
 const emit = defineEmits(['select'])
 
 const NAME_TO_NODE = {
@@ -88,10 +94,28 @@ function edgePath(e) {
   return { d, lx: mx, ly: (y1 + y2) / 2 + (y2 < y1 ? -12 : y2 > y1 ? 20 : -8) }
 }
 const edges = computed(() => EDGES.map((e) => ({ ...e, ...edgePath(e), on: edgeOn(e) })))
+
+/* 상담 입력 카드: START 위 빈자리(노드가 없는 x 8~608, y 8~100). 펼치면 그래프 전체를 그만큼 아래로 내림 */
+const CARD = { x: 8, y: 8, w: 600, h: 92, hOpen: 136 }
+const open = ref(false)
+const cardH = computed(() => (open.value ? CARD.hOpen : CARD.h))
+const shift = computed(() => (props.input && open.value ? CARD.hOpen - CARD.h : 0))
+const viewH = computed(() => 345 + shift.value)
+// 상담요약 '[문의] … [확인] … [처리] …' (한 줄이든 여러 줄이든) → 항목별. 형식이 없으면 요약 전체를 한 항목으로
+const inputLines = computed(() => {
+  const s = props.input?.summary || ''
+  const found = [...s.matchAll(/\[(문의|확인|처리)\]\s*([^[]*)/g)].map((m) => ({ tag: m[1], text: m[2].trim() })).filter((l) => l.text)
+  return found.length ? found : (s.trim() ? [{ tag: '요약', text: s.trim() }] : [])
+})
+const inputEdge = computed(() => {
+  const y1 = CARD.y + cardH.value
+  const y2 = NODES.start.y + shift.value - 18
+  return { d: `M${NODES.start.x},${y1} L${NODES.start.x},${y2 - 2}`, ly: (y1 + y2) / 2 + 4 }
+})
 </script>
 
 <template>
-  <svg class="agent-graph" viewBox="0 0 970 345" role="img" aria-label="LangGraph 에이전트 흐름도">
+  <svg class="agent-graph" :viewBox="`0 0 970 ${viewH}`" role="img" aria-label="LangGraph 에이전트 흐름도">
     <defs>
       <marker id="ag-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
         <path d="M0,0 L10,5 L0,10 z" class="arrow-off" />
@@ -101,6 +125,30 @@ const edges = computed(() => EDGES.map((e) => ({ ...e, ...edgePath(e), on: edgeO
       </marker>
     </defs>
 
+    <!-- 이번 상담 입력 카드 → START -->
+    <template v-if="input">
+      <foreignObject :x="CARD.x" :y="CARD.y" :width="CARD.w" :height="cardH">
+        <div class="in-card" :class="{ live: input.live, open }">
+          <div class="in-head">
+            <span class="in-label">입력 · {{ input.live ? `이번 상담${input.no ? ' ' + input.no : ''}` : '등록할 상담' }}</span>
+            <span class="in-who"><span class="in-call">{{ input.callId }}</span>{{ input.customer }} 고객</span>
+            <span class="pill type">{{ input.type }}</span>
+            <span v-if="input.channel" class="pill">{{ input.channel }}</span>
+            <span class="pill">{{ input.result }}</span>
+            <button v-if="inputLines.length > 1" class="in-toggle" type="button" @click="open = !open">{{ open ? '접기 ▴' : '펼치기 ▾' }}</button>
+          </div>
+          <div class="in-lines">
+            <div v-for="(l, i) in inputLines" v-show="i === 0 || open" :key="l.tag + i"><span class="qtag">{{ l.tag }}</span>{{ l.text }}</div>
+            <div v-if="!inputLines.length" class="muted">상담요약을 입력하면 여기에 표시됩니다.</div>
+          </div>
+          <div v-if="input.quote" class="in-quote">“{{ input.quote }}”</div>
+        </div>
+      </foreignObject>
+      <path :d="inputEdge.d" class="in-edge" :class="{ on: input.live }" :marker-end="input.live ? 'url(#ag-arrow-on)' : 'url(#ag-arrow)'" />
+      <text :x="NODES.start.x + 10" :y="inputEdge.ly" class="in-edge-label" :class="{ on: input.live }">상담 입력</text>
+    </template>
+
+    <g :transform="`translate(0, ${shift})`">
     <g v-for="(e, i) in edges" :key="'e' + i">
       <path :d="e.d" class="edge" :class="{ on: e.on }" :marker-end="e.on ? 'url(#ag-arrow-on)' : 'url(#ag-arrow)'" />
       <text v-if="e.label" :x="e.lx" :y="e.ly" class="edge-label" :class="{ on: e.on }" text-anchor="middle">{{ e.label }}</text>
@@ -119,6 +167,7 @@ const edges = computed(() => EDGES.map((e) => ({ ...e, ...edgePath(e), on: edgeO
         <text :x="n.x" :y="n.y - 3" text-anchor="middle" class="label">{{ n.label }}</text>
         <text :x="n.x" :y="n.y + 14" text-anchor="middle" class="sub">{{ n.sub }}</text>
       </template>
+    </g>
     </g>
   </svg>
 </template>
@@ -146,4 +195,25 @@ const edges = computed(() => EDGES.map((e) => ({ ...e, ...edgePath(e), on: edgeO
 .clickable { cursor: pointer; outline: none; }
 .clickable:hover rect, .clickable:focus-visible rect { stroke-width: 2.6; filter: drop-shadow(0 2px 6px rgba(25, 31, 40, .18)); }
 @keyframes glow { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: .35; } }
+
+/* 이번 상담 입력 카드 (등록 전: 회색 점선 · 등록 후: 파랑 실선) */
+.in-card { box-sizing: border-box; width: 100%; height: 100%; padding: 9px 14px; border-radius: 12px; border: 1.5px dashed var(--line-input); background: var(--surface); color: var(--text); overflow: hidden; transition: border-color .2s, background .2s; }
+.in-card.live { border-style: solid; border-color: var(--accent); background: #f7fbff; }
+.in-head { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.in-label { font-size: 11px; font-weight: 800; color: var(--text-3); }
+.in-card.live .in-label { color: var(--accent); }
+.in-who { font-size: 13px; font-weight: 700; }
+.in-call { font-family: var(--mono); font-size: 11px; color: var(--text-3); font-weight: 500; margin-right: 4px; }
+.pill { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--line); color: var(--text-2); }
+.pill.type { background: var(--accent-soft); color: var(--accent); }
+.in-toggle { margin-left: auto; font: inherit; font-size: 11.5px; font-weight: 700; border: 0; background: none; color: var(--accent); cursor: pointer; padding: 2px 6px; border-radius: var(--radius-badge); }
+.in-toggle:hover { background: var(--accent-soft); }
+.in-lines { margin-top: 5px; font-size: 12.5px; line-height: 1.55; }
+.in-lines > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qtag { display: inline-block; min-width: 30px; font-size: 11px; font-weight: 800; color: var(--accent); margin-right: 4px; }
+.in-quote { font-size: 12px; color: var(--text-2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.in-edge { fill: none; stroke: var(--line-input); stroke-width: 1.6; stroke-dasharray: 5 4; }
+.in-edge.on { stroke: var(--accent); }
+.in-edge-label { font-size: 11px; font-weight: 700; fill: var(--text-3); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
+.in-edge-label.on { fill: var(--accent); }
 </style>

@@ -5,7 +5,7 @@ import { SEVERITY_LABEL } from '../../utils/format'
 
 /* 사건 해결 장면 (상담이력등록 SCR-03)
    에이전트 실행 과정을 START 부터 END 까지 이어 재생하면 마지막에 결과를 '사건 해결' 카드와 도장으로 보여줍니다.
-   [판별 결과 보기] → 판별 결과 팝업, [닫기]·×·바깥 클릭·Esc → 닫기 */
+   [판별 결과 보기] → 판별 결과 팝업, [닫기]·×·Esc → 닫기 (바깥을 눌러서는 닫히지 않음) */
 
 const props = defineProps({ run: { type: Object, required: true } })
 const emit = defineEmits(['close', 'result'])
@@ -43,7 +43,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 </script>
 
 <template>
-  <div class="solved" @click.self="emit('close')">
+  <div class="solved">
     <div class="panel" :class="'tone-' + scene.tone" role="dialog" aria-modal="true" aria-label="사건 해결">
       <button class="x" type="button" title="닫기 (Esc)" aria-label="닫기" @click="emit('close')">×</button>
       <img :src="mascot" alt="콜록이" width="130" height="130">

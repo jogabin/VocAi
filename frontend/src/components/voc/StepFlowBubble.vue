@@ -300,7 +300,7 @@ onBeforeUnmount(() => { document.removeEventListener('keydown', onKey); window.r
 </template>
 
 <style scoped>
-.bubble { position: relative; margin: 14px auto 0; max-width: 980px; background: var(--surface); border: 1.5px solid var(--accent); border-radius: var(--radius-card); padding: 12px 14px 14px; box-shadow: 0 6px 20px rgba(25, 31, 40, .12); animation: pop .16s ease-out; }
+.bubble { position: relative; margin: 14px auto 0; max-width: 980px; background: var(--surface); border: 1.5px solid var(--accent); border-radius: var(--radius-card); padding: 12px 14px 12px; box-shadow: 0 6px 20px rgba(25, 31, 40, .12); animation: pop .16s ease-out; }
 .bubble::before, .bubble::after { content: ''; position: absolute; left: var(--tail); transform: translateX(-50%); border: 9px solid transparent; border-top: 0; }
 .bubble::before { top: -10px; border-bottom: 10px solid var(--accent); }
 .bubble::after { top: -8px; border-bottom: 10px solid var(--surface); }
@@ -314,8 +314,8 @@ onBeforeUnmount(() => { document.removeEventListener('keydown', onKey); window.r
 .x:hover { background: var(--line); color: var(--text); }
 
 /* 카드 위 무대: 콜록이가 처리 중인 카드 위로 이동하고, 옆에 분석 코멘트 */
-.lane { position: relative; padding-top: 100px; }
-.agent { position: absolute; top: 22px; width: 76px; height: 76px; z-index: 4; pointer-events: none; opacity: 0; }
+.lane { position: relative; padding-top: 80px; }
+.agent { position: absolute; top: 2px; width: 76px; height: 76px; z-index: 4; pointer-events: none; opacity: 0; }
 .fig { position: relative; width: 76px; height: 76px; }
 .fig img { width: 72px; height: 72px; display: block; margin: 4px 0 0 2px; transform-origin: 50% 100%; }
 /* 나타남 · 사라짐: 카드 위에서 '뿅' 나왔다가 다음 카드로 갈 때 '쏙' 사라짐 */
@@ -371,15 +371,15 @@ onBeforeUnmount(() => { document.removeEventListener('keydown', onKey); window.r
 @keyframes cheer { 40% { transform: translateY(-20px) scale(1.08); } }
 
 /* 부드러운 코멘트 말풍선: 상태 색이 옅게 비치는 배경 + 콜록이 쪽 둥근 꼬리 */
-.say { --tone: var(--accent); --tint: #f3f8ff; position: absolute; top: 8px; max-width: min(430px, 60%); background: linear-gradient(180deg, var(--surface), var(--tint)); border: 1px solid rgba(27, 100, 218, .12); border-radius: 18px; padding: 9px 15px 10px; font-size: 13px; line-height: 1.6; color: var(--text-2); box-shadow: 0 6px 18px rgba(25, 31, 40, .07), 0 1px 3px rgba(25, 31, 40, .05); transition: opacity .2s, transform .2s, background .4s; z-index: 3; word-break: keep-all; }
+.say { --tone: var(--accent); --tint: #f3f8ff; position: absolute; top: 0; max-width: min(430px, 60%); background: linear-gradient(180deg, var(--surface), var(--tint)); border: 1px solid rgba(27, 100, 218, .12); border-radius: 18px; padding: 6px 15px 7px; font-size: 13px; line-height: 1.5; color: var(--text-2); box-shadow: 0 6px 18px rgba(25, 31, 40, .07), 0 1px 3px rgba(25, 31, 40, .05); transition: opacity .2s, transform .2s, background .4s; z-index: 3; word-break: keep-all; }
 .say.show { animation: sayIn .3s cubic-bezier(.3, 1.4, .5, 1); }
 .say.hide { opacity: 0; transform: scale(.94) translateY(4px); }
 @keyframes sayIn { from { opacity: 0; transform: scale(.9) translateY(6px); } }
-.say::before { content: ''; position: absolute; left: -6px; top: 22px; width: 13px; height: 13px; background: var(--tint); border-left: 1px solid rgba(27, 100, 218, .12); border-bottom: 1px solid rgba(27, 100, 218, .12); border-bottom-left-radius: 4px; transform: rotate(45deg); transition: background .4s; }
+.say::before { content: ''; position: absolute; left: -6px; top: 18px; width: 13px; height: 13px; background: var(--tint); border-left: 1px solid rgba(27, 100, 218, .12); border-bottom: 1px solid rgba(27, 100, 218, .12); border-bottom-left-radius: 4px; transform: rotate(45deg); transition: background .4s; }
 .say.flip::before { left: auto; right: -6px; transform: rotate(-135deg); }
 .say .who { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--tone); margin-bottom: 2px; transition: color .3s; }
 .say .who::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--tone); box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 18%, transparent); }
-.say .text { display: block; min-height: 1.6em; animation: fadeUp .3s ease-out; }
+.say .text { display: block; min-height: 1.5em; animation: fadeUp .3s ease-out; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(3px); } }
 .say.found { --tone: var(--p1); --tint: #fff5f6; }
 .say.clear { --tone: var(--ok); --tint: #f2fbf6; }
