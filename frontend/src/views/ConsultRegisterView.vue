@@ -114,8 +114,8 @@ async function loadCall(id) {
 watch(() => query.value.call, (id) => loadCall(id))
 
 const chatBox = ref(null)
-function scrollChat() {
-  nextTick(() => { if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight })
+function scrollChat() {                                  // 통화를 열면 STT 원문 첫 발화부터 보이게
+  nextTick(() => { if (chatBox.value) chatBox.value.scrollTop = 0 })
 }
 
 /* ---------- 원문대화 복사등록: 상담데이터 등록(SCR-10, 시스템관리자) 화면을 이 통화의 고객·상담사·대화로 채워 열기 ---------- */
