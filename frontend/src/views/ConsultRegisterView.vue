@@ -179,9 +179,11 @@ let pendingResult = false                                // 등록·재실행한
 const showSolved = ref(false)                            // END 까지 재생하면 사건 해결 장면
 const doneSteps = computed(() => (run.value?.steps || []).filter((s) => s.status !== 'RUNNING'))
 const autoPlaying = computed(() => autoIdx.value != null)
+const playNo = ref(0)                                    // 재생할 때마다 늘려 그래프의 입력 카드가 다시 나타나게 함
 
 function startAuto() {
   stopAuto()
+  playNo.value++
   showSolved.value = false
   flowSeq.value = null
   autoIdx.value = 0
@@ -284,11 +286,11 @@ async function rerun() {
 
 const agentName = (n) => (n || '').replace(/^상담사\s*/, '')
 
-/* 실행 과정 그래프 안 '이번 상담' 입력 카드: 등록 전에는 입력 중인 폼, 등록 후에는 등록된 값(폼에 채워 둠)
+/* 실행 과정 그래프 안 '이번 상담' 입력 카드: 에이전트가 실행돼 START 가 켜진 뒤에만 등록된 값(폼에 채워 둠)으로 표시
    고객 발화는 증상을 말한 첫 고객 발화 (없으면 인사·본인확인을 건너뛴 첫 고객 발화) */
 const SYMPTOM_RE = /오류|에러|안\s?(돼|되|나와|떠)|실패|반복|멈|끊|늦|지연|계속|문제/
 const graphInput = computed(() => {
-  if (!call.value) return null
+  if (!call.value || !run.value) return null
   const said = (call.value.utterances || []).filter((u) => u.speaker === 'CUSTOMER').map((u) => u.text.trim())
   return {
     live: isDone.value,
@@ -423,7 +425,7 @@ onBeforeUnmount(() => clearTimeout(pollTimer))
           </div>
         </div>
         <div class="card-body">
-          <div class="graph-box"><AgentGraph :run="graphRun" :selected="flowSeq" :input="graphInput" @select="openStep" /></div>
+          <div class="graph-box"><AgentGraph :run="graphRun" :selected="flowSeq" :input="graphInput" :play-key="playNo" @select="openStep" /></div>
           <StepFlowBubble v-if="flowStep" :step="flowStep" :x="flowX" @done="onBubbleDone" @close="stopAuto(); flowSeq = null" />
           <p v-else-if="run" class="muted graph-tip">그래프의 에이전트를 누르면 그 단계가 어떻게 동작했는지 도식으로 볼 수 있고, [▶ 처음부터 재생]으로 START부터 END까지 이어서 볼 수 있습니다.</p>
           <div v-if="run" class="run-detail">

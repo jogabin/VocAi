@@ -5,10 +5,12 @@ import { computed, ref } from 'vue'
 // 실행된 노드를 누르면 select(step, x) — 단계 도식 말풍선용 (x: 노드 가로 위치 0~1, selected: 열린 단계 seq)
 // input 을 넘기면 왼쪽 위 빈자리에 '이번 상담' 입력 카드를 그리고 START 로 이음
 //   { live: 등록됨, no: '#1024', callId, customer, type, channel, result, summary, quote }
+// playKey 가 바뀌면 입력 카드가 처음처럼 살짝 떠오르며 다시 나타남 (재생·재실행)
 const props = defineProps({
   run: { type: Object, default: null },
   selected: { type: Number, default: null },
   input: { type: Object, default: null },
+  playKey: { type: Number, default: 0 },
 })
 const emit = defineEmits(['select'])
 
@@ -126,7 +128,7 @@ const inputEdge = computed(() => {
     </defs>
 
     <!-- 이번 상담 입력 카드 → START -->
-    <template v-if="input">
+    <g v-if="input" :key="playKey" class="in-appear">
       <foreignObject :x="CARD.x" :y="CARD.y" :width="CARD.w" :height="cardH">
         <div class="in-card" :class="{ live: input.live, open }">
           <div class="in-head">
@@ -146,7 +148,7 @@ const inputEdge = computed(() => {
       </foreignObject>
       <path :d="inputEdge.d" class="in-edge" :class="{ on: input.live }" :marker-end="input.live ? 'url(#ag-arrow-on)' : 'url(#ag-arrow)'" />
       <text :x="NODES.start.x + 10" :y="inputEdge.ly" class="in-edge-label" :class="{ on: input.live }">상담 입력</text>
-    </template>
+    </g>
 
     <g :transform="`translate(0, ${shift})`">
     <g v-for="(e, i) in edges" :key="'e' + i">
@@ -216,4 +218,13 @@ const inputEdge = computed(() => {
 .in-edge.on { stroke: var(--accent); }
 .in-edge-label { font-size: 11px; font-weight: 700; fill: var(--text-3); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
 .in-edge-label.on { fill: var(--accent); }
+/* 나타나기: 카드가 살짝 떠오르고 → 상담요약·고객 발화 → START 로 잇는 선 순서로 */
+.in-appear .in-card { animation: in-rise .6s ease-out both; }
+.in-appear .in-lines, .in-appear .in-quote { animation: in-fade .5s .3s ease-out both; }
+.in-appear .in-edge, .in-appear .in-edge-label { animation: in-fade .4s .55s ease-out both; }
+@keyframes in-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes in-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .in-appear .in-card, .in-appear .in-lines, .in-appear .in-quote, .in-appear .in-edge, .in-appear .in-edge-label { animation: none; }
+}
 </style>
