@@ -515,9 +515,6 @@ class _Loader:
                     seen.add(emp["emp_id"])
         consult = {**c["consult"], "customer_name": c["cust"]["customer_name"], "agent_name": f"상담사 {c['agent']}"}
         title, body = notify.compose(self.db, inc, sev_out, consult, primary, secondary, names)
-        title = "[등급 상향 P2→P1]" + title
-        changed = "; ".join(r for r in sev_out["reasons"] if r.startswith("[")) or "-"
-        body = body.replace("▣ 증상", f"▣ 등급 변경\n 이전 P2 → 현재 P1 (근거: {changed})\n\n▣ 증상", 1)
         link = notify.detail_url(inc["incident_id"])
         rows = [(e, "1차") for e in primary] + [(e, "2차") for e in secondary]
         self.db.execute(text("""

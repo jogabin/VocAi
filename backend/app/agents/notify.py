@@ -120,11 +120,9 @@ def manual_draft(db, inc: dict, severity: str, sender: str) -> dict:
     reports = inc.get("reports") or []
     consult = reports[-1] if reports else {"consult_id": "-", "customer_name": "", "agent_name": ""}
     view = {**inc, "severity": severity}
+    # 메시지는 IT담당자가 볼 내용만: 등급을 바꿔 보내도 바뀐 등급만 싣고 변경 경위는 넣지 않음 (처리 이력에 남음)
     title, body = compose(db, view, {"analysis": inc.get("analysis"), "similar_cases": inc.get("similar_cases")},
                           consult, primary, secondary, names)
-    if severity != inc["severity"]:
-        title = f"[등급 변경 {inc['severity']}→{severity}]" + title
-        body = body.replace("▣ 증상", f"▣ 등급 변경\n 이전 {inc['severity']} → 현재 {severity} ({sender} 판단)\n\n▣ 증상", 1)
     title = f"[수동 전송 · {sender}]" + title
     body = body.replace("※ VOC 자율형 장애 알림 AI Agent 자동 발송", f"※ {sender} 확인 후 수동 전송 (VOC 장애 알림 AI Agent 작성)")
     return {"primary": primary, "secondary": secondary, "title": title[:200], "body": body}
@@ -206,13 +204,8 @@ def run(db, ctx: dict) -> tuple[str, str, dict]:
     primary = primary_recipients(db, inc["error_type"], inc["severity"])
     secondary, resolver_names = secondary_recipients(db, sev.get("similar_cases") or [],
                                                      {e["emp_id"] for e in primary})
+    # 메시지는 IT담당자가 볼 내용만: 등급이 올라 다시 보내도 현재 등급만 싣고 상향 경위는 넣지 않음
     title, body = compose(db, inc, sev, consult, primary, secondary, resolver_names)
-    dd = ctx.get("dedup") or {}
-    before = notified or (dd.get("previous_severity") if dd.get("merged") else None)
-    if before and before != inc["severity"]:
-        title = f"[등급 상향 {before}→{inc['severity']}]" + title
-        changed = "; ".join(r for r in sev.get("reasons") or [] if r.startswith("[")) or "-"
-        body = body.replace("▣ 증상", f"▣ 등급 변경\n 이전 {before} → 현재 {inc['severity']} (근거: {changed})\n\n▣ 증상", 1)
     link = detail_url(inc["incident_id"])
     targets = [{"receiver": e["messenger_id"], "receiver_name": e["emp_name"], "emp_id": e["emp_id"],
                 "recipient_type": "1차", "link_url": link} for e in primary]
